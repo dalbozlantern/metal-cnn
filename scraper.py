@@ -8,6 +8,7 @@ import os
 import pandas as pd
 from bs4 import BeautifulSoup
 import time
+import numpy as np
 from utils.utils import progress_bar
 
 # =========================================================================
@@ -79,6 +80,9 @@ def download_json_files():
 
 
 def parse_downloaded_json_files():
+
+    # Searches through the json files that were downloaded and pulls the band webpages into a csv
+
     print('Parsing downloaded json files:')
     band_links = []
     band_names = []
@@ -100,54 +104,61 @@ def parse_downloaded_json_files():
                 band_links += [link['href']]
                 band_names += link.contents
 
-    number_of_bands = len(band_names)
-    print('\n    Done scanning json files: ' + str(number_of_bands) + ' band names found')
-
     # Create and export a dataframe for the bands
     bands_df = pd.DataFrame({'Band': band_names, 'Url': band_links})
     bands_df['Logo url'] = None
     bands_df['Logo file'] = None
     bands_df.to_csv('scraping/bands_df.csv')
 
+    number_of_bands = len(band_names)
+    print('\n    Done scanning json files: ' + str(number_of_bands) + ' band names found')
+
     return bands_df
-
-
-
-
-
-def download_image_for_band(band_index, bands_df):
-    # Parse the band's page
-    test_url = bands_df['Url'][band_index]
-    band_webpage = urllib.request.urlopen(test_url)
-    time.sleep(crawl_delay)
-    band_web_content = band_webpage.read().decode('UTF-8')
-    soup = BeautifulSoup(band_web_content, 'html.parser')
-
-    # Find the link to the logo
-    logo_link = soup.find_all(id='logo')[0]['href']
-    bands_df.set_value(band_index, 'Logo url', logo_link)
-
-    # Save the image to disk
-    logo_ext_pos = str.rfind(logo_link, '.')
-    logo_extension = logo_link[logo_ext_pos:]
-    logo_file = bands_df['Band'][band_index][0:10] + '-#' + str(band_index) + logo_extension
-    urllib.request.urlretrieve(logo_link, 'images/01-raw/' + logo_file)
-    time.sleep(crawl_delay)
-    bands_df.set_value(band_index, 'Logo file', logo_file)
-
-    return  bands_df
-
-# bands_df = parse_downloaded_json_files()
 
 
 def parse_band_urls(bands_df, iteration_limit=0):
-    print('Identifying and ')
-    if iteration_limit == 0:
-        iteration_limit = bands_df.shape
-    for band_index in range(0, iteration_limit):
-        bands_df = download_image_for_band(band_index, bands_df)
 
+    def download_image_for_band(band_index, bands_df):
+        # Parse the band's page
+        test_url = bands_df['Url'][band_index]
+        band_webpage = urllib.request.urlopen(test_url)
+        time.sleep(crawl_delay)
+        band_web_content = band_webpage.read().decode('UTF-8')
+        soup = BeautifulSoup(band_web_content, 'html.parser')
+
+        # Find the link to the logo
+        logo_link = soup.find_all(id='logo')[0]['href']
+        bands_df.loc[band_index, 'Logo url'] = logo_link
+
+        # Save the image to disk
+        logo_ext_pos = str.rfind(logo_link, '.')
+        logo_extension = logo_link[logo_ext_pos:]
+        logo_file = bands_df['Band'][band_index][0:10] + '-#' + str(band_index) + logo_extension
+        urllib.request.urlretrieve(logo_link, '/mnt/2Teraz/metal-cnn-images/01-raw/' + logo_file)
+        time.sleep(crawl_delay)
+        bands_df.loc[band_index, 'Logo file'] = logo_file
+
+        return bands_df
+
+    print('Identifying and downloading images')
+    if iteration_limit == 0:
+        iteration_limit = bands_df.shape[0]
+    open('band_url_parser_log.ini', 'w').write('Band url parsing log:\n\n')
+
+    for band_index in range(0, iteration_limit):
+        if pd.isnull(bands_df['Logo url'][band_index]):
+            progress_bar('Band #', band_index, iteration_limit)
+            try:
+                bands_df = download_image_for_band(band_index, bands_df)
+            except:
+                open('band_url_parser_log.ini', 'a').write('Error with ' + str(band_index))
+            if band_index % 5 == 0 or band_index == iteration_limit:
+                bands_df.to_csv('scraping/bands_df.csv')
+
+    print('\n    Done parsing band URLs')
     return bands_df
 
-band_index = 0
 
+bands_df = parse_downloaded_json_files()
+# bands_df = pd.read_csv('scraping/bands_df.csv')
+bands_df = parse_band_urls(bands_df)

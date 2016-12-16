@@ -19,7 +19,7 @@ def progress_bar(label, currentN, endN, startN=0):
     hash3 = '|' + '#' * max(0, min(num_hashes - 10, 5)) + ' ' * (5 - max(0, min(num_hashes - 10, 5)))
     hash4 = '|' + '#' * max(0, min(num_hashes - 15, 5)) + ' ' * (5 - max(0, min(num_hashes - 15, 5)))
     progressbar = hash1 + hash2 + hash3 + hash4 + '||'
-    print('{0}  {1}  ({2} {3} / {4})...'.format(progress_format, progressbar, label, currentN, endN), end="\r")
+    print('    {0}  {1}  ({2} {3} / {4})...'.format(progress_format, progressbar, label, currentN, endN), end="\r")
 
 
 def email_alert(msg):
