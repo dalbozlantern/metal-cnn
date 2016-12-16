@@ -1,1 +1,5 @@
 *.json
+images/01-raw
+images/02-cut
+*.ini
+*.request
