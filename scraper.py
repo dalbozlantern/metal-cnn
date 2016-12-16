@@ -8,7 +8,6 @@ import os
 import pandas as pd
 from bs4 import BeautifulSoup
 import time
-import numpy as np
 from utils.utils import progress_bar
 
 # =========================================================================
@@ -118,6 +117,8 @@ def parse_downloaded_json_files():
 
 def parse_band_urls(bands_df, iteration_limit=0):
 
+    # Downloads the images across a range of bands
+
     def download_image_for_band(band_index, bands_df):
         # Parse the band's page
         test_url = bands_df['Url'][band_index]
@@ -159,6 +160,12 @@ def parse_band_urls(bands_df, iteration_limit=0):
     return bands_df
 
 
-bands_df = parse_downloaded_json_files()
-# bands_df = pd.read_csv('scraping/bands_df.csv')
-bands_df = parse_band_urls(bands_df)
+def run_all_scraping():
+    print('Rebuilding the ENTIRE database from scratch in 30 SEC...')
+    time.sleep(30)
+    download_json_files()
+    bands_df = parse_downloaded_json_files()
+    # bands_df = pd.read_csv('scraping/bands_df.csv')
+    bands_df = parse_band_urls(bands_df)
+    print('Finished all steps.')
+    return
