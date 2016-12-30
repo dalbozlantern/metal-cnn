@@ -56,3 +56,22 @@ def merge_dfs(bands_df, bands_df_dupe):
               }: del a[v]
     a.columns = ['Band', 'Country', 'Genre', 'Url', 'Black', 'Logo url', 'Logo file']
     return
+
+import pandas as pd
+import matplotlib.pyplot as plt
+
+bands_df = pd.read_csv('scraping/bands_df.csv')
+band_names = list(bands_df['Band'])
+lengths = [len(name) for name in band_names]
+lengths.sort()
+indices = [i/len(lengths) for i in list(range(0, len(lengths)))]
+
+plt.plot(indices, lengths)
+plt.yscale('log')
+plt.show()
+
+import collections
+a = collections.Counter('')
+for i in band_names:
+    a += collections.Counter(i)
+b = dict(a)

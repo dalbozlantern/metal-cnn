@@ -180,6 +180,9 @@ def parse_band_urls(bands_df, iteration_limit=0):
     return bands_df
 
 
+# =========================================================================
+
+
 def run_all_scraping():
     print('Rebuilding the ENTIRE database from scratch in 30 SEC...')
     time.sleep(30)
