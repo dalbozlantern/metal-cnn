@@ -9,7 +9,7 @@ import pandas as pd
 import json
 from bs4 import BeautifulSoup
 import time
-from utils.utils import progress_bar
+from metal_utils.widgets import progress_bar
 
 # =========================================================================
 
