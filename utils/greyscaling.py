@@ -276,27 +276,6 @@ grey_list = [grey1, grey2, grey3, grey4]
 def img_diag(grey):
     return ((len(grey)**2+len(grey[0])**2)**.5)
 
-def test_me(gamma=10):
-    for grey in grey_list:
-        bottom = np.percentile(grey, gamma)
-        top = np.percentile(grey, 100-gamma)
-        clip = np.empty(grey.shape[:2])
-        for x in range(0, grey.shape[0]):
-            for y in range(0, grey.shape[1]):
-                norm = min(max(grey[x, y], bottom), top)
-                norm = (norm - bottom) / (top - bottom)
-                # norm = .5 - abs(.5 - norm)
-                clip[x, y] = norm
-        diff = np.add(-clip, .5)
-        diff = np.abs(diff)
-        diff = np.add(-diff, .5)
-        diff = np.multiply(diff, 2)
-        diff_sq = np.power(diff, 2)
-        print(np.sum(diff_sq))
-        slice = clip[len(clip) / 3]
-        plot_arbitrary_array(slice)
-
-test_me()
 
 def white_score(greyscale_image):
     threshold = threshold_otsu(greyscale_image)
