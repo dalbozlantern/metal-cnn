@@ -1,5 +1,5 @@
 import numpy as np
-from PIL import Image
+import PIL.Image
 
 from scipy.ndimage.filters import gaussian_filter
 from scipy import misc
@@ -11,12 +11,14 @@ from skimage.morphology import disk
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
 
+import os
+import pandas as pd
 
 #===========================================================================
 # Low-level image utilities
 
 def show_image(image_np_array):
-    Image.fromarray(image_np_array).show()
+    PIL.Image.fromarray(image_np_array).show()
 
 
 def load_image(img_file_name):
@@ -119,21 +121,36 @@ def create_and_plot_curves(input_greyscale_img):
     plot_density_curve(density_curve, x_threshold)
 
 
+
+def plot_arbitrary_array(array, ylim=[-1, -1]):
+    plotting_axis = list(range(len(array)))
+    plotting_axis = [i / (len(array) - 1) for i in plotting_axis]
+
+    fig1 = plt.figure()
+    ax1 = fig1.add_subplot(1, 1, 1)
+
+    ax1.plot(plotting_axis, array, linewidth=2)
+
+    ax1.set_xlim(0, 1)
+    ax1.set_xlabel('% of sample')
+    ax1.xaxis.set_major_formatter(FuncFormatter(format_as_percent))
+
+    if ylim[0] != -1:
+        ax1.set_ylim(ylim[0], ylim[1])
+
+    fig1.show()
+
 #===========================================================================
 # Image transformations
 
 # Returns a greyscale image maxed on the maximum intensity across channels
 def max_rgb2grey(image):
-    max_grey = np.empty(image.shape[:2])
-    for x in range(0, image.shape[0]):
-        for y in range(0, image.shape[1]):
-            max_grey[x, y] = image[x, y][:3].max()
-    return max_grey
+    return np.amax(image[...,:2], 2)
 
 
 # Returns the "standard" greyscale image, averaging across channels
-def crt_rgb2grey(rgb):
-    return np.dot(rgb[...,:3], [0.299, 0.587, 0.114])
+def crt_rgb2grey(image):
+    return np.dot(image[...,:3], [0.299, 0.587, 0.114])
 
 
 # Takes an image and an intensity threshold and outputs a hard black-and-white stencil
@@ -169,6 +186,7 @@ def otsu_percentile(greyscale_image):
 def smooth_image(greyscale_image, blur=1):
     reformatted_greyscale = np.array( [i/255 for i in greyscale_image] )
     return rank.mean_bilateral(reformatted_greyscale, disk(blur), s0=500, s1=500)
+
 
 #===========================================================================
 # Output analysis
@@ -226,8 +244,7 @@ sample_files = ['126409_logo.jpg',
              '87712_logo.GIF',
              '94913_logo.jpg',
              '95296_logo.jpg',
-             'iron.png',
-             'plot_canny.py']
+             'iron.png']
 
 rootpath = '/mnt/2Teraz/DL-datasets/metal-cnn-images/test_files/'
 
@@ -236,35 +253,50 @@ def iterate_over_sample(sample_files, rootpath):
         file_name = rootpath + file
         image = load_image(file_name)
         greyscale_image = max_rgb2grey(image)
-        optimized_image = threshold_image(greyscale_image)
-        smooth_out = smooth_image(optimized_image)
         print(file_name)
-        # create_and_plot_curves(greyscale_image)
-        show_image(image)
-        # show_image(greyscale_image)
-        # show_image(optimized_image)
-        # print(white_score(greyscale_image))
-        # show_image(smooth_out)
-        # input("Press Enter to continue...")
+        show_image(greyscale_image)
+        score = blur_score(greyscale_image)
+        print(score)
+        input("Press Enter to continue...")
 
 
 
-img = load_image(rootpath + '3540305397_logo.jpg')
-grey = max_rgb2grey(img)
-thr = threshold_image(grey)
-show_image(thr)
+img1 = load_image(rootpath + '27213_logo.gif')  # irredemable
+grey1 = max_rgb2grey(img1)
+img2 = load_image(rootpath + '3540409149_logo.png')  # ideal
+grey2 = max_rgb2grey(img2)
+img3 = load_image(rootpath + '3540305397_logo.jpg')  # good but whispy
+grey3 = max_rgb2grey(img3)
+img4 = load_image(rootpath + '3540285103_logo.jpg')  # good but blurry
+grey4 = max_rgb2grey(img4)
 
-from skimage.restoration import denoise_nl_means
-show_image(denoise_nl_means(thr, 7, 11, 0.1, False))
 
+grey_list = [grey1, grey2, grey3, grey4]
 
+def img_diag(grey):
+    return ((len(grey)**2+len(grey[0])**2)**.5)
 
-# return the otsu threshold
-# return the curve
-# return the curve above the otsu threshold
-# make a difference vector
-# average the difference vector
-greyscale_image = []
+def test_me(gamma=10):
+    for grey in grey_list:
+        bottom = np.percentile(grey, gamma)
+        top = np.percentile(grey, 100-gamma)
+        clip = np.empty(grey.shape[:2])
+        for x in range(0, grey.shape[0]):
+            for y in range(0, grey.shape[1]):
+                norm = min(max(grey[x, y], bottom), top)
+                norm = (norm - bottom) / (top - bottom)
+                # norm = .5 - abs(.5 - norm)
+                clip[x, y] = norm
+        diff = np.add(-clip, .5)
+        diff = np.abs(diff)
+        diff = np.add(-diff, .5)
+        diff = np.multiply(diff, 2)
+        diff_sq = np.power(diff, 2)
+        print(np.sum(diff_sq))
+        slice = clip[len(clip) / 3]
+        plot_arbitrary_array(slice)
+
+test_me()
 
 def white_score(greyscale_image):
     threshold = threshold_otsu(greyscale_image)
@@ -273,3 +305,106 @@ def white_score(greyscale_image):
     white_differences = difference_vector(white_curve_portion)
     avg_slope = sum(white_differences) / len(white_differences)
     return avg_slope
+
+
+
+
+
+#
+def blur_score(greyscale_image, cutoff=2):
+    bottom_treshold = np.percentile(greyscale_image, cutoff)
+    top_threshold = np.percentile(greyscale_image, 100 - cutoff)
+    if bottom_treshold == top_threshold:
+        return 1
+    clip = np.empty(greyscale_image.shape[:2])
+    for x in range(0, greyscale_image.shape[0]):
+        for y in range(0, greyscale_image.shape[1]):
+            norm = min(max(greyscale_image[x, y], bottom_treshold), top_threshold)
+            norm = (norm - bottom_treshold) / (top_threshold - bottom_treshold)
+            norm = .5 - abs(.5 - norm)
+            clip[x, y] = norm
+    return np.mean(clip)
+
+
+def blur_score2(greyscale_image, cutoff=10):
+    bottom_treshold = np.percentile(greyscale_image, cutoff)
+    top_threshold = np.percentile(greyscale_image, 100 - cutoff)
+    if bottom_treshold == top_threshold:
+        return 1
+    capped = np.minimum(greyscale_image, top_threshold)
+    capped = np.maximum(capped, bottom_treshold)
+    norm = np.add(capped, -bottom_treshold)
+    norm = np.multiply(norm, 1/(top_threshold - bottom_treshold))
+    diff_from_center = np.abs(np.add(norm, -.5))
+    diff_from_extremes = np.add(-diff_from_center, .5)
+    diff_sq = np.power(diff_from_extremes, 2)
+    return np.mean(diff_sq)
+
+
+scores = []
+file_names = []
+count = 0
+for root, dirs, files in os.walk('/mnt/2Teraz/DL-datasets/metal-cnn-images/01-raw'):
+    for name in files:
+        count += 1
+        if count % 10 == 0:
+            print(count)
+        if count >= 100:
+            break
+        try:
+            img = load_image(os.path.join(root, name))
+            grey = max_rgb2grey(img)
+            score = blur_score2(grey)
+            scores += [score]
+            file_names += [os.path.join(root, name)]
+        except:
+            pass
+doo_df2 = pd.DataFrame({'score': scores, 'file': file_names})
+doo_df2 = doo_df2.sort(columns='score')
+doo_df2.index = range(1, len(doo_df2) + 1)
+
+plot_arbitrary_array(doo_df2['score'])
+
+
+def sample(i):
+    print(doo_df2['score'][i])
+    show_image(load_image(doo_df2['file'][i]))
+    show_image(max_rgb2grey(load_image(doo_df2['file'][i])))
+
+
+
+from matplotlib.offsetbox import AnnotationBbox, OffsetImage
+import math
+
+
+def expand_greyscale(greyscale_2D):
+    greyscale_3D = np.expand_dims(greyscale_2D, 2)
+    greyscale_3D = np.repeat(greyscale_3D, 3, 2)
+    return greyscale_3D
+
+def plot_image(image, scale, x, y):
+    if len(image.shape) == 2:
+        image = expand_greyscale(image)
+    imagebox = OffsetImage(image, zoom=scale)
+    ab = AnnotationBbox(imagebox, [x, y],
+                        xybox=(30., -30.),
+                        xycoords='data',
+                        boxcoords="offset points")
+    return ab
+
+
+
+fig = plt.gcf()
+fig.clf()
+ax = plt.subplot(111)
+
+n = 100
+k = 11
+j = math.floor((n-1)/(k-1))
+for i in range(1, k):
+    img = load_image(doo_df2['file'][1 + i*j])
+    ax.add_artist(plot_image(img, .25, (i)/(k), .5))
+
+ax.grid(False)
+plt.draw()
+plt.show()
