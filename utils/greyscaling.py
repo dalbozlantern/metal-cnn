@@ -14,6 +14,16 @@ from matplotlib.ticker import FuncFormatter
 import os
 import pandas as pd
 
+from matplotlib.offsetbox import AnnotationBbox, OffsetImage
+import math
+
+
+# Load project variables
+from configparser import ConfigParser
+config = ConfigParser()
+config.read('config.ini')
+img_root = config.get('main', 'img_root')
+
 #===========================================================================
 # Low-level image utilities
 
@@ -216,50 +226,9 @@ def compare_otsu(img_file_name):
 # Scratchwork
 
 
-
-sample_files = ['126409_logo.jpg',
-             '27213_logo.gif',
-             '3540262037_logo.jpg',
-             '3540270735_logo.jpg',
-             '3540285103_logo.jpg',
-             '3540298623_logo.jpg',
-             '3540305397_logo.jpg',
-             '3540345632_logo.jpg',
-             '3540354438_logo.jpg',
-             '3540366370_logo.jpg',
-             '3540367708_logo.jpg',
-             '3540383763_logo.png',
-             '3540388380_logo.jpg',
-             '3540389754_logo.gif',
-             '3540397209_logo.jpg',
-             '3540409149_logo.png',
-             '3540418516_logo.jpg',
-             '46351_logo (1).gif',
-             '46351_logo.gif',
-             '58202_logo.JPG',
-             '6164_logo.jpg',
-             '69184_logo.jpg',
-             '79251_logo.jpg',
-             '87179_logo.jpg',
-             '87712_logo.GIF',
-             '94913_logo.jpg',
-             '95296_logo.jpg',
-             'iron.png']
+# Loading useful samples
 
 rootpath = '/mnt/2Teraz/DL-datasets/metal-cnn-images/test_files/'
-
-def iterate_over_sample(sample_files, rootpath):
-    for file in sample_files:
-        file_name = rootpath + file
-        image = load_image(file_name)
-        greyscale_image = max_rgb2grey(image)
-        print(file_name)
-        show_image(greyscale_image)
-        score = blur_score(greyscale_image)
-        print(score)
-        input("Press Enter to continue...")
-
-
 
 img1 = load_image(rootpath + '27213_logo.gif')  # irredemable
 grey1 = max_rgb2grey(img1)
@@ -270,79 +239,68 @@ grey3 = max_rgb2grey(img3)
 img4 = load_image(rootpath + '3540285103_logo.jpg')  # good but blurry
 grey4 = max_rgb2grey(img4)
 
-
 grey_list = [grey1, grey2, grey3, grey4]
 
-def img_diag(grey):
-    return ((len(grey)**2+len(grey[0])**2)**.5)
 
-
-def white_score(greyscale_image):
-    threshold = threshold_otsu(greyscale_image)
-    intensity_curve = create_intensity_curve(greyscale_image)
-    white_curve_portion = [i for i in intensity_curve if i >= threshold]
-    white_differences = difference_vector(white_curve_portion)
-    avg_slope = sum(white_differences) / len(white_differences)
-    return avg_slope
-
-
-
-
-
-#
-def blur_score(greyscale_image, cutoff=2):
+def normalize_image(greyscale_image, cutoff=10):
     bottom_treshold = np.percentile(greyscale_image, cutoff)
     top_threshold = np.percentile(greyscale_image, 100 - cutoff)
     if bottom_treshold == top_threshold:
-        return 1
-    clip = np.empty(greyscale_image.shape[:2])
-    for x in range(0, greyscale_image.shape[0]):
-        for y in range(0, greyscale_image.shape[1]):
-            norm = min(max(greyscale_image[x, y], bottom_treshold), top_threshold)
-            norm = (norm - bottom_treshold) / (top_threshold - bottom_treshold)
-            norm = .5 - abs(.5 - norm)
-            clip[x, y] = norm
-    return np.mean(clip)
-
-
-def blur_score2(greyscale_image, cutoff=10):
-    bottom_treshold = np.percentile(greyscale_image, cutoff)
-    top_threshold = np.percentile(greyscale_image, 100 - cutoff)
-    if bottom_treshold == top_threshold:
-        return 1
+        return greyscale_image
     capped = np.minimum(greyscale_image, top_threshold)
     capped = np.maximum(capped, bottom_treshold)
     norm = np.add(capped, -bottom_treshold)
-    norm = np.multiply(norm, 1/(top_threshold - bottom_treshold))
-    diff_from_center = np.abs(np.add(norm, -.5))
+    norm = np.multiply(norm, 255 / (top_threshold - bottom_treshold))
+    return norm
+
+
+def blur_score(normed_image):
+    if np.maximum(normed_image) > 1:
+        norm = np.multiply(normed_image, 1/255)
+    diff_from_center = np.abs(np.add(normed_image, -.5))
     diff_from_extremes = np.add(-diff_from_center, .5)
     diff_sq = np.power(diff_from_extremes, 2)
     return np.mean(diff_sq)
 
 
-scores = []
-file_names = []
-count = 0
-for root, dirs, files in os.walk('/mnt/2Teraz/DL-datasets/metal-cnn-images/01-raw'):
-    for name in files:
-        count += 1
-        if count % 10 == 0:
-            print(count)
-        if count >= 100:
-            break
-        try:
-            img = load_image(os.path.join(root, name))
-            grey = max_rgb2grey(img)
-            score = blur_score2(grey)
-            scores += [score]
-            file_names += [os.path.join(root, name)]
-        except:
-            pass
-doo_df2 = pd.DataFrame({'score': scores, 'file': file_names})
-doo_df2 = doo_df2.sort(columns='score')
-doo_df2.index = range(1, len(doo_df2) + 1)
+def find_avg_border_color(greyscale_image, border=5):
+    height = greyscale_image.shape[0]
+    width = greyscale_image.shape[1]
+    # Create the border mask
+    bar_horiz = np.ones([border, width])
+    bar_vert = np.ones([height - 2*border, border])
+    center = np.zeros([height - 2*border, width - 2*border])
+    middle = np.concatenate((bar_vert, center, bar_vert), 1)
+    mask = np.concatenate((bar_horiz, middle, bar_horiz), 0)
+    # Extract the border
+    border = np.multiply(mask, greyscale_image)
+    return np.sum(border) / np.sum(mask)
 
-plot_arbitrary_array(doo_df2['score'])
+
+def test_scores():
+    scores = []
+    file_names = []
+    count = 0
+    for root, dirs, files in os.walk(rootpath):
+        for name in files:
+            count += 1
+            if count % 10 == 0:
+                print(count)
+            if count >= 100:
+                break
+            try:
+                img = load_image(os.path.join(root, name))
+                grey = max_rgb2grey(img)
+                norm = normalize_image(grey)
+                score = blur_score(norm)
+                scores += [score]
+                file_names += [os.path.join(root, name)]
+            except:
+                pass
+    doo_df2 = pd.DataFrame({'score': scores, 'file': file_names})
+    doo_df2 = doo_df2.sort(columns='score')
+    doo_df2.index = range(1, len(doo_df2) + 1)
+    plot_arbitrary_array(doo_df2['score'])
 
 
 def sample(i):
@@ -351,9 +309,6 @@ def sample(i):
     show_image(max_rgb2grey(load_image(doo_df2['file'][i])))
 
 
-
-from matplotlib.offsetbox import AnnotationBbox, OffsetImage
-import math
 
 
 def expand_greyscale(greyscale_2D):
@@ -372,18 +327,37 @@ def plot_image(image, scale, x, y):
     return ab
 
 
+def plot_examples(n=100, k=11):
+    fig = plt.gcf()
+    fig.clf()
+    ax = plt.subplot(111)
 
-fig = plt.gcf()
-fig.clf()
-ax = plt.subplot(111)
+    j = math.floor((n-1)/(k-1))
+    for i in range(1, k):
+        img = load_image(doo_df2['file'][1 + i*j])
+        ax.add_artist(plot_image(img, .25, (i)/(k), .5))
 
-n = 100
-k = 11
-j = math.floor((n-1)/(k-1))
-for i in range(1, k):
-    img = load_image(doo_df2['file'][1 + i*j])
-    ax.add_artist(plot_image(img, .25, (i)/(k), .5))
+    ax.grid(False)
+    plt.draw()
+    plt.show()
 
-ax.grid(False)
-plt.draw()
-plt.show()
+
+bkgs = []
+files = []
+count = -1
+for root, dirs, files in os.walk(img_root + '/0000'):
+    for name in files:
+        count += 1
+        if count % 100 == 0:
+            print(str(count))
+        try:
+            img = load_image(os.path.join(root, name))
+            grey = max_rgb2grey(img)
+            norm = normalize_image(grey)
+            bkg = find_avg_border_color(norm)
+            bkgs += [bkg]
+            files += [os.path.join(root, name)]
+        except:
+            pass
+border_df = pd.DataFrame({'file': files, 'bkg': bkgs})
+plot_arbitrary_array(bkgs)
