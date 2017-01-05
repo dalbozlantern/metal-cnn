@@ -95,10 +95,10 @@ def show_examples(bands_df):
 
 
 def main():
-    bands_df = pd.read_csv('scraping/bands_df.csv', index_col=0)
+    bands_df = pd.read_csv('image_databases/downloaded_bands_df.csv', index_col=0)
     bands_df = whitelist_cleaning(bands_df)
     bands_df['Overall valid'] = (bands_df['Logo file'] != 'NO LOGO FOUND') & bands_df['Unicode valid']
-    bands_df.to_csv('scraping/bands_df.csv')
+    bands_df.to_csv('image_databases/downloaded_bands_df.csv')
     print_statistics(bands_df)
     show_examples(bands_df)
     return bands_df

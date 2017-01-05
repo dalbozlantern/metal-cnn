@@ -127,7 +127,7 @@ def parse_downloaded_json_files():
     },)
     bands_df['Logo url'] = None
     bands_df['Logo file'] = None
-    bands_df.to_csv('scraping/bands_df.csv')
+    bands_df.to_csv('image_databases/downloaded_bands_df.csv')
 
     number_of_bands = len(band_names)
     print('\n    Done scanning json files: ' + str(number_of_bands) + ' band names found')
@@ -180,7 +180,7 @@ def parse_band_urls(bands_df, iteration_limit=0):
             except:
                 open('scraping/band_url_parser_log.ini', 'a').write('Error with ' + str(band_index) + '\n')
             if band_index % 5 == 0 or band_index == iteration_limit:
-                bands_df.to_csv('scraping/bands_df.csv')
+                bands_df.to_csv('image_databases/downloaded_bands_df.csv')
 
     print('\n    Done parsing band URLs')
     return bands_df
@@ -194,7 +194,7 @@ def main():
     time.sleep(30)
     download_json_files()
     bands_df = parse_downloaded_json_files()
-        # bands_df = pd.read_csv('scraping/bands_df.csv', index_col=0)
+        # bands_df = pd.read_csv('image_databases/downloaded_bands_df.csv', index_col=0)
     bands_df = parse_band_urls(bands_df)
     print('Finished all steps.')
     return

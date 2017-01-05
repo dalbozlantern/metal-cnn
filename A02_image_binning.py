@@ -47,9 +47,9 @@ def move_to_bins(bands_df, bin_size=1000):
 
 
 def main():
-    bands_df = pd.read_csv('scraping/bands_df.csv', index_col=0)
+    bands_df = pd.read_csv('image_databases/downloaded_bands_df.csv', index_col=0)
     folder_bins, full_paths = move_to_bins(bands_df)
     bands_df['Bins'] = folder_bins
     bands_df['Full paths'] = full_paths
-    bands_df.to_csv('scraping/bands_df.csv')
+    bands_df.to_csv('image_databases/downloaded_bands_df.csv')
     print('\nDone.')

@@ -98,18 +98,18 @@ def score_statistics(bands_df):
 
 
 def main():
-    bands_df = pd.read_csv('scraping/bands_df.csv', index_col=0)
+    bands_df = pd.read_csv('image_databases/downloaded_bands_df.csv', index_col=0)
 
     bands_df['Border scores'] = None
     bands_df['Blur scores'] = None
     bands_df = analyze_image_scores(bands_df)
-    bands_df.to_csv('scraping/bands_df.csv')
+    bands_df.to_csv('image_databases/downloaded_bands_df.csv')
 
     bands_df['Border valid'] = None
     bands_df['Blur valid'] = None
     bands_df['Overall valid'] = False
     bands_df = validate_scores(bands_df)
-    bands_df.to_csv('scraping/bands_df.csv')
+    bands_df.to_csv('image_databases/downloaded_bands_df.csv')
 
     view_distributions(bands_df, 'Blur scores', 100, 'blur_scores.html')
     view_distributions(bands_df, 'Border scores', 100, 'border_scores.html')
