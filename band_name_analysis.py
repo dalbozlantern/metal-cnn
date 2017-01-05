@@ -13,7 +13,7 @@ def whitelist_cleaning(bands_df):
     band_names = list(bands_df['Band'])
     # Import the list of find-and-replace accent marks
     accent_dict = {rows[0]: rows[1] for rows in
-                   csv.reader(open('utils/latin_accents.csv', mode='r'))}
+                   csv.reader(open('metal_utils/latin_accents.csv', mode='r'))}
 
     # Cleans the band names, returns a fidelity score
     def whitelist_unicode(content, accent_dict):
