@@ -1,9 +1,8 @@
-# Only pass through whitelisted unicode characters
-
 import pandas as pd
 import csv
 import re
-import math
+from random import randrange
+
 
 def whitelist_cleaning(bands_df):
 
@@ -48,45 +47,61 @@ def whitelist_cleaning(bands_df):
 
     list_if_valid = [score == 1 for score in whitelist_scores]
 
-    percent_valid = round(sum(list_if_valid)/len(list_if_valid),2)
-    print(str(100*percent_valid) + '% of band names pass unicode screening')
-
     bands_df['Unicode valid'] = list_if_valid
     bands_df['Cleaned name'] = cleaned_names
     return bands_df
 
 
-bands_df = pd.read_csv('scraping/bands_df.csv')
-bands_df = whitelist_cleaning(bands_df)
+def print_statistics(bands_df):
 
-band_names = list(bands_df['Band'])
-valid_list = list(bands_df['Unicode valid'])
-cleaned_names = list(bands_df['Cleaned name'])
+    has_image = sum(bands_df['Logo file'] != 'NO LOGO FOUND')
+    img_percent = has_image / bands_df.shape[0]
+    img_percent = round(100 * img_percent, 1)
+    print(str(img_percent) + '% of bands have an valid logo')
 
-no_change = [band_names[i] + ' | ' + cleaned_names[i] for i in range(len(band_names))
-             if valid_list[i] == 1]
-changed_but_valid = [band_names[i] + ' | ' + cleaned_names[i] for i in range(len(band_names))
-                     if valid_list[i] == 1
-                     and cleaned_names[i] != band_names[i]]
-invalid_names = [band_names[i] + ' | ' + cleaned_names[i] for i in range(len(band_names))
-                     if valid_list[i] == 0]
-print('*******')
-for i in range(10):
-    print(no_change[i])
-print('*******')
-for i in range(10):
-    print(changed_but_valid[i])
-print('*******')
-for i in range(10):
-    print(invalid_names[i])
+    uni_percent = sum(bands_df['Unicode valid']) / bands_df.shape[0]
+    uni_percent = round(100 * uni_percent, 1)
+    print(str(uni_percent) + '% of band names pass unicode screening')
+
+    all_percent = sum(bands_df['Overall valid']) / bands_df.shape[0]
+    all_percent = round(100 * all_percent, 1)
+    print(str(all_percent) + '% of band names pass both criteria')
 
 
-excluded_strings = []
-for i in range(len(band_names)):
-    excluded_strings += list(set(band_names[i]) - set(cleaned_names[i]))
-with open('test.txt', 'w') as file:
-    for i in set(excluded_strings):
-        file.write(i + '\n')
+def print_a_few(input_list, spacer='    '):
+    for i in range(5):
+        print(spacer + input_list[randrange(len(input_list))])
 
-logo_files = bands_df['Logo file']
-test =
+
+def show_examples(bands_df):
+    band_names = list(bands_df['Band'])
+    valid_list = list(bands_df['Unicode valid'])
+    cleaned_names = list(bands_df['Cleaned name'])
+
+    no_change = [band_names[i] for i in range(len(band_names))
+                 if valid_list[i] == 1]
+    changed_but_valid = [band_names[i] + ' --> ' + cleaned_names[i] for i in range(len(band_names))
+                         if valid_list[i] == 1
+                         and cleaned_names[i] != band_names[i]]
+    invalid_names = [band_names[i] for i in range(len(band_names))
+                         if valid_list[i] == 0]
+
+    print('\nSome band names that didn\'t need unicode cleaning:')
+    print_a_few(no_change)
+    print('\nSome band names that made the cut, but needed cleaning:')
+    print_a_few(changed_but_valid)
+    print('\nSome band names that were cut:')
+    print_a_few(invalid_names)
+
+
+def main():
+    bands_df = pd.read_csv('scraping/bands_df.csv')
+    bands_df = whitelist_cleaning(bands_df)
+    bands_df['Overall valid'] = (bands_df['Logo file'] != 'NO LOGO FOUND') & bands_df['Unicode valid']
+    bands_df.to_csv('scraping/bands_df.csv')
+    print_statistics(bands_df)
+    show_examples(bands_df)
+    return bands_df
+
+
+bands_df = main()

@@ -11,6 +11,12 @@ from bs4 import BeautifulSoup
 import time
 from metal_utils.widgets import progress_bar
 
+# Load project variables
+from configparser import ConfigParser
+config = ConfigParser()
+config.read('config.ini')
+img_root = config.get('main', 'img_root')
+
 # =========================================================================
 
 crawl_delay = 3  # As per the metal-archives robots.txt
@@ -155,7 +161,7 @@ def parse_band_urls(bands_df, iteration_limit=0):
         logo_ext_pos = str.rfind(logo_link, '.')
         logo_extension = logo_link[logo_ext_pos:]
         logo_file = bands_df['Band'][band_index][0:10] + '-#' + str(band_index) + logo_extension
-        urllib.request.urlretrieve(logo_link, '/mnt/2Teraz/metal-cnn-images/01-raw/' + logo_file)
+        urllib.request.urlretrieve(logo_link, img_root + logo_file)
         time.sleep(crawl_delay)
         bands_df.loc[band_index, 'Logo file'] = logo_file
 
@@ -188,7 +194,7 @@ def run_all_scraping():
     time.sleep(30)
     download_json_files()
     bands_df = parse_downloaded_json_files()
-    # bands_df = pd.read_csv('scraping/bands_df.csv')
+        # bands_df = pd.read_csv('scraping/bands_df.csv')
     bands_df = parse_band_urls(bands_df)
     print('Finished all steps.')
     return
