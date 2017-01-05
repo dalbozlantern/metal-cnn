@@ -60,7 +60,7 @@ def merge_dfs(bands_df, bands_df_dupe):
 import pandas as pd
 import matplotlib.pyplot as plt
 
-bands_df = pd.read_csv('scraping/bands_df.csv')
+bands_df = pd.read_csv('scraping/bands_df.csv', index_col=0)
 band_names = list(bands_df['Band'])
 lengths = [len(name) for name in band_names]
 lengths.sort()

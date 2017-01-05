@@ -194,7 +194,7 @@ def main():
     time.sleep(30)
     download_json_files()
     bands_df = parse_downloaded_json_files()
-        # bands_df = pd.read_csv('scraping/bands_df.csv')
+        # bands_df = pd.read_csv('scraping/bands_df.csv', index_col=0)
     bands_df = parse_band_urls(bands_df)
     print('Finished all steps.')
     return

@@ -1,3 +1,5 @@
+import os
+import pandas as pd
 import numpy as np
 import PIL.Image
 
@@ -11,11 +13,9 @@ from skimage.morphology import disk
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
 
-import os
-import pandas as pd
-
-from matplotlib.offsetbox import AnnotationBbox, OffsetImage
 import math
+
+import webbrowser
 
 
 # Load project variables
@@ -34,6 +34,98 @@ def show_image(image_np_array):
 def load_image(img_file_name):
     return np.array(misc.imread(img_file_name))
 
+def save_image(image_array, dir, file_name):
+    misc.toimage(image_array, cmin=0.0, cmax=255).save(dir + '/' + file_name)
+
+
+#===========================================================================
+# Image transformations
+
+# Returns a greyscale image maxed on the maximum intensity across channels
+def max_rgb2grey(image):
+    if len(image.shape) != 2:
+        return np.amax(image[...,:2], 2)
+    else:
+        return image
+
+
+# Returns the "standard" greyscale image, averaging across channels
+def crt_rgb2grey(image):
+    if len(image.shape) != 2:
+        return np.dot(image[...,:3], [0.299, 0.587, 0.114])
+    else:
+        return image
+
+
+# "Expands" a 2D greyscape back into 3 dimensions via repetition (useful for matplotlib plotting on graphs)
+def expand_greyscale(greyscale_2D):
+    greyscale_3D = np.expand_dims(greyscale_2D, 2)
+    greyscale_3D = np.repeat(greyscale_3D, 3, 2)
+    return greyscale_3D
+
+
+# Takes an image and an intensity threshold and outputs a hard black-and-white stencil
+def threshold_split(greyscale_image, threshold):
+    black_and_white = np.empty(greyscale_image.shape[:2])
+    for x in range(0, greyscale_image.shape[0]):
+        for y in range(0, greyscale_image.shape[1]):
+            if greyscale_image[x, y] > threshold:
+                black_and_white[x, y] = 255
+            else:
+                black_and_white[x, y] = 0
+    return black_and_white
+
+
+# Similar to threshold_split(), but auto-calculates the optimal threshold
+def threshold_image(greyscale_image):
+    return threshold_split(greyscale_image, threshold_otsu(greyscale_image))
+
+
+# Returns the x-axis value of the Otsu threshold of an image (in % of pixels above/below the threshold)
+def otsu_percentile(greyscale_image):
+    threshold = threshold_otsu(greyscale_image)
+    intensity_curve = create_intensity_curve(greyscale_image)
+    intensity_difference_from_threshold = [abs(i - threshold) for i in intensity_curve]
+    minimum_differences = intensity_difference_from_threshold == min(intensity_difference_from_threshold)
+    axis = list(range(len(intensity_curve)))
+    axis = [i / (len(intensity_curve) - 1) for i in axis]
+    average_minimum = np.dot(minimum_differences, axis) / sum(minimum_differences)
+    return average_minimum
+
+
+# Smooth image
+def smooth_image(greyscale_image, blur=1):
+    reformatted_greyscale = np.array( [i/255 for i in greyscale_image] )
+    return rank.mean_bilateral(reformatted_greyscale, disk(blur), s0=500, s1=500)
+
+
+# Performs a hard clip and rescaling for black and white
+def normalize_image(greyscale_image, cutoff=10):
+    bottom_treshold = np.percentile(greyscale_image, cutoff)
+    top_threshold = np.percentile(greyscale_image, 100 - cutoff)
+    if bottom_treshold == top_threshold:
+        return greyscale_image
+    capped = np.minimum(greyscale_image, top_threshold)
+    capped = np.maximum(capped, bottom_treshold)
+    norm = np.add(capped, -bottom_treshold)
+    norm = np.multiply(norm, 255 / (top_threshold - bottom_treshold))
+    return norm
+
+
+# Returns an image of an identical size, but with only the border showing (all the interior is black)
+def mask_to_border(greyscale_image, border=5):
+    height = greyscale_image.shape[0]
+    width = greyscale_image.shape[1]
+    # Create the border mask
+    bar_horiz = np.ones([border, width])
+    bar_vert = np.ones([height - 2*border, border])
+    center = np.zeros([height - 2*border, width - 2*border])
+    middle = np.concatenate((bar_vert, center, bar_vert), 1)
+    mask = np.concatenate((bar_horiz, middle, bar_horiz), 0)
+    # Extract the border
+    border = np.multiply(mask, greyscale_image)
+    return border
+
 
 #===========================================================================
 # Intensity curves
@@ -49,8 +141,8 @@ def difference_vector(input_array):
 
 
 # Takes a greyscale image and turns it into a sorted, 1D pixel intensity curve
-def create_intensity_curve(input_greyscale_img):
-    greyscale_img = input_greyscale_img.copy()
+def create_intensity_curve(greyscale_image):
+    greyscale_img = greyscale_image.copy()
     height = len(greyscale_img)
     width = len(greyscale_img[0])
     greyscale_img.resize((1, height * width))  # 1D: (h*w)
@@ -120,18 +212,18 @@ def plot_density_curve(formatted_density_curve, x_threshold=-1):
 
 
 # Takes an input greyscale image and plots intensity/slope vs. the thresholds
-def create_and_plot_curves(input_greyscale_img):
+def create_and_plot_curves(greyscale_image):
     print('Calculating thresholds...')
-    x_threshold = otsu_percentile(input_greyscale_img)
-    y_threshold = threshold_otsu(input_greyscale_img)
+    x_threshold = otsu_percentile(greyscale_image)
+    y_threshold = threshold_otsu(greyscale_image)
     print('Computing density curve...')
-    intensity_curve = create_intensity_curve(input_greyscale_img)
+    intensity_curve = create_intensity_curve(greyscale_image)
     density_curve = create_density_curve(intensity_curve)
     plot_intensity_curve(intensity_curve, x_threshold, y_threshold)
     plot_density_curve(density_curve, x_threshold)
 
 
-
+# Plots an arbitrary array as "% of sample"
 def plot_arbitrary_array(array, ylim=[-1, -1]):
     plotting_axis = list(range(len(array)))
     plotting_axis = [i / (len(array) - 1) for i in plotting_axis]
@@ -150,57 +242,9 @@ def plot_arbitrary_array(array, ylim=[-1, -1]):
 
     fig1.show()
 
-#===========================================================================
-# Image transformations
-
-# Returns a greyscale image maxed on the maximum intensity across channels
-def max_rgb2grey(image):
-    return np.amax(image[...,:2], 2)
-
-
-# Returns the "standard" greyscale image, averaging across channels
-def crt_rgb2grey(image):
-    return np.dot(image[...,:3], [0.299, 0.587, 0.114])
-
-
-# Takes an image and an intensity threshold and outputs a hard black-and-white stencil
-def threshold_split(greyscale_image, threshold):
-    black_and_white = np.empty(greyscale_image.shape[:2])
-    for x in range(0, greyscale_image.shape[0]):
-        for y in range(0, greyscale_image.shape[1]):
-            if greyscale_image[x, y] > threshold:
-                black_and_white[x, y] = 255
-            else:
-                black_and_white[x, y] = 0
-    return black_and_white
-
-
-# Similar to threshold_split(), but auto-calculates the optimal threshold
-def threshold_image(greyscale_image):
-    return threshold_split(greyscale_image, threshold_otsu(greyscale_image))
-
-
-# Returns the x-axis value of the Otsu threshold of an image (in % of pixels above/below the threshold)
-def otsu_percentile(greyscale_image):
-    threshold = threshold_otsu(greyscale_image)
-    intensity_curve = create_intensity_curve(grey)
-    intensity_difference_from_threshold = [abs(i - threshold) for i in intensity_curve]
-    minimum_differences = intensity_difference_from_threshold == min(intensity_difference_from_threshold)
-    axis = list(range(len(intensity_curve)))
-    axis = [i / (len(intensity_curve) - 1) for i in axis]
-    average_minimum = np.dot(minimum_differences, axis) / sum(minimum_differences)
-    return average_minimum
-
-
-# Smooth image
-def smooth_image(greyscale_image, blur=1):
-    reformatted_greyscale = np.array( [i/255 for i in greyscale_image] )
-    return rank.mean_bilateral(reformatted_greyscale, disk(blur), s0=500, s1=500)
-
 
 #===========================================================================
 # Output analysis
-
 
 # Shows the outputs of the two greyscaling methods: max and crt
 def compare_greys(img_file_name):
@@ -221,6 +265,62 @@ def compare_otsu(img_file_name):
 
     show_image(max_stencil)
     show_image(crt_stencil)
+    
+
+# Calculates the mean squared "greyness" of an image
+# ("greyness" being the furthest distance from either white or black)
+def find_blur_score(normalized_image):
+    scaled_norm = np.multiply(normalized_image, 1/255)
+    diff_from_center = np.abs(np.add(scaled_norm, -.5))
+    diff_from_extremes = np.add(-diff_from_center, .5)
+    diff_sq = np.power(diff_from_extremes, 2)
+    return np.mean(diff_sq)
+
+
+# Determines a score representing the proportion of the image's 1-pixel border is "absolute white"
+def find_border_score(normalized_image):
+    border = mask_to_border(normalized_image, 1)
+    height = normalized_image.shape[0]
+    width = normalized_image.shape[1]
+    perim = 2 * (height + width) - 4
+    return np.sum(np.abs(border - 255) < 10) / perim
+
+
+# Returns how much of a normalized image falls into the black/white bands, and how much is in-between
+def bucketize_image(normalized_image):
+    px = normalized_image.shape[0] * normalized_image.shape[1]
+    black = np.sum(np.abs(normalized_image) < 1) / px  # Weird abs term to cover for floating point errors
+    white = np.sum(np.abs(normalized_image - 255) < 1) / px  # Weird abs term to cover for floating point errors
+    grey = 1 - black - white
+    return black, white, grey
+
+
+# Saves and opens a test page iterating across a list of image files with some parameter (e.g., a score) attached
+def save_to_html(output_file, image_list, param_list, number_of_cuts):
+    # Initialize
+    assert len(image_list) == len(param_list)
+    step_size = math.floor(len(image_list) / number_of_cuts)
+
+    # Build the html file
+    with open(output_file, 'w') as file:
+        file.write('<html>\n<head>\n')
+        for i in range(0, number_of_cuts * step_size, step_size):
+            link = image_list[i]
+            link = link.replace('?', '%3F')
+            link = link.replace('#', '%23')
+            link = link.replace(' ', '%20')
+            file.write('<img height="100" src="' + link + '"><br>\n')
+            file.write(str(param_list[i]) + '<br><br>\n')
+        file.write('</body>\n</html>')
+
+    # Open the file
+    if output_file[0] == '/':
+        url = output_file
+    else:
+        current_working_directory = os.getcwd()
+        url = current_working_directory + '/' + output_file
+    webbrowser.open(url, new=2)
+
 
 #===========================================================================
 # Scratchwork
@@ -230,134 +330,18 @@ def compare_otsu(img_file_name):
 
 rootpath = '/mnt/2Teraz/DL-datasets/metal-cnn-images/test_files/'
 
-img1 = load_image(rootpath + '27213_logo.gif')  # irredemable
-grey1 = max_rgb2grey(img1)
-img2 = load_image(rootpath + '3540409149_logo.png')  # ideal
-grey2 = max_rgb2grey(img2)
-img3 = load_image(rootpath + '3540305397_logo.jpg')  # good but whispy
-grey3 = max_rgb2grey(img3)
-img4 = load_image(rootpath + '3540285103_logo.jpg')  # good but blurry
-grey4 = max_rgb2grey(img4)
-
-grey_list = [grey1, grey2, grey3, grey4]
-
-
-def normalize_image(greyscale_image, cutoff=10):
-    bottom_treshold = np.percentile(greyscale_image, cutoff)
-    top_threshold = np.percentile(greyscale_image, 100 - cutoff)
-    if bottom_treshold == top_threshold:
-        return greyscale_image
-    capped = np.minimum(greyscale_image, top_threshold)
-    capped = np.maximum(capped, bottom_treshold)
-    norm = np.add(capped, -bottom_treshold)
-    norm = np.multiply(norm, 255 / (top_threshold - bottom_treshold))
-    return norm
-
-
-def blur_score(normed_image):
-    if np.maximum(normed_image) > 1:
-        norm = np.multiply(normed_image, 1/255)
-    diff_from_center = np.abs(np.add(normed_image, -.5))
-    diff_from_extremes = np.add(-diff_from_center, .5)
-    diff_sq = np.power(diff_from_extremes, 2)
-    return np.mean(diff_sq)
-
-
-def find_avg_border_color(greyscale_image, border=5):
-    height = greyscale_image.shape[0]
-    width = greyscale_image.shape[1]
-    # Create the border mask
-    bar_horiz = np.ones([border, width])
-    bar_vert = np.ones([height - 2*border, border])
-    center = np.zeros([height - 2*border, width - 2*border])
-    middle = np.concatenate((bar_vert, center, bar_vert), 1)
-    mask = np.concatenate((bar_horiz, middle, bar_horiz), 0)
-    # Extract the border
-    border = np.multiply(mask, greyscale_image)
-    return np.sum(border) / np.sum(mask)
-
-
-def test_scores():
-    scores = []
-    file_names = []
-    count = 0
-    for root, dirs, files in os.walk(rootpath):
-        for name in files:
-            count += 1
-            if count % 10 == 0:
-                print(count)
-            if count >= 100:
-                break
-            try:
-                img = load_image(os.path.join(root, name))
-                grey = max_rgb2grey(img)
-                norm = normalize_image(grey)
-                score = blur_score(norm)
-                scores += [score]
-                file_names += [os.path.join(root, name)]
-            except:
-                pass
-    doo_df2 = pd.DataFrame({'score': scores, 'file': file_names})
-    doo_df2 = doo_df2.sort(columns='score')
-    doo_df2.index = range(1, len(doo_df2) + 1)
-    plot_arbitrary_array(doo_df2['score'])
-
-
-def sample(i):
-    print(doo_df2['score'][i])
-    show_image(load_image(doo_df2['file'][i]))
-    show_image(max_rgb2grey(load_image(doo_df2['file'][i])))
-
-
-
-
-def expand_greyscale(greyscale_2D):
-    greyscale_3D = np.expand_dims(greyscale_2D, 2)
-    greyscale_3D = np.repeat(greyscale_3D, 3, 2)
-    return greyscale_3D
-
-def plot_image(image, scale, x, y):
-    if len(image.shape) == 2:
-        image = expand_greyscale(image)
-    imagebox = OffsetImage(image, zoom=scale)
-    ab = AnnotationBbox(imagebox, [x, y],
-                        xybox=(30., -30.),
-                        xycoords='data',
-                        boxcoords="offset points")
-    return ab
-
-
-def plot_examples(n=100, k=11):
-    fig = plt.gcf()
-    fig.clf()
-    ax = plt.subplot(111)
-
-    j = math.floor((n-1)/(k-1))
-    for i in range(1, k):
-        img = load_image(doo_df2['file'][1 + i*j])
-        ax.add_artist(plot_image(img, .25, (i)/(k), .5))
-
-    ax.grid(False)
-    plt.draw()
-    plt.show()
-
-
-bkgs = []
-files = []
-count = -1
-for root, dirs, files in os.walk(img_root + '/0000'):
-    for name in files:
-        count += 1
-        if count % 100 == 0:
-            print(str(count))
-        try:
-            img = load_image(os.path.join(root, name))
-            grey = max_rgb2grey(img)
-            norm = normalize_image(grey)
-            bkg = find_avg_border_color(norm)
-            bkgs += [bkg]
-            files += [os.path.join(root, name)]
-        except:
-            pass
-border_df = pd.DataFrame({'file': files, 'bkg': bkgs})
-plot_arbitrary_array(bkgs)
+def load_examples():
+    links = {1: rootpath + '27213_logo.gif',  # irredemable
+             2: rootpath + '3540409149_logo.png',  # ideal
+             3: rootpath + '3540305397_logo.jpg',  # good but whispy
+             4: rootpath + '3540285103_logo.jpg',  # good but blurry
+             }
+    images = {}
+    for i in links:
+        images[i] = load_image(links[i])
+    greys = {}
+    for i in links:
+        greys[i] = max_rgb2grey(images[i])
+    norms = {}
+    for i in links:
+        norms[i] = normalize_image(greys[i])
