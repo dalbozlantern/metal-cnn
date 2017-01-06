@@ -1,17 +1,22 @@
 from utils.greyscaling import *
+from utils.image_splitting import *
+# (inherits all imports)
+
 from utils.utils import progress_bar
+import re
 
 # Load project variables
 from configparser import ConfigParser
 config = ConfigParser()
 config.read('config.ini')
 img_root = config.get('main', 'img_root')
+cropped_root = config.get('main', 'cropped_root')
 
 
 def analyze_image_scores(bands_df):
     corpus_size = bands_df.shape[0]
     with open('scores_log.ini', 'a') as file:
-        file.write('NEW RUN*********')
+        file.write('NEW RUN*********\n')
     for i, row in bands_df.iterrows():
         if i % 50 == 0:
             progress_bar('Processing image #', i, corpus_size)
@@ -36,7 +41,7 @@ def analyze_image_scores(bands_df):
 def validate_scores(bands_df, blur_threshold=.025, border_threshold=.01):
     corpus_size = bands_df.shape[0]
     with open('validation_log.ini', 'a') as file:
-        file.write('NEW RUN*********')
+        file.write('NEW RUN*********\n')
     for i, row in bands_df.iterrows():
         if i % 50 == 0:
             progress_bar('Processing image #', i, corpus_size)
@@ -66,11 +71,6 @@ def view_distributions(bands_df, key, number_of_examples=20, output_file='test.h
     bands_df_copy = bands_df_copy.sort(key)
     file_list = [img_root + '/' + i for i in bands_df_copy['Full paths']]
     score_list = list(bands_df_copy[key])
-    # file_list = [img_root + '/' + bands_df_copy['Full paths'][i]
-    #              for i in range(bands_df_copy.shape[0])
-    #              if bands_df_copy[key][i] is not None]
-    # score_list = [i for i in bands_df_copy[key]
-    #               if i is not None]
     assert len(file_list) == len(score_list)
     save_to_html(output_file, file_list, score_list, number_of_examples)
 
@@ -97,6 +97,121 @@ def score_statistics(bands_df):
     print(np.sum(bands_df['Overall valid']))
 
 
+def initialize_cropped_df():
+    cropped_df = pd.DataFrame(columns=['Band',
+                               'Country',
+                               'Genre',
+                               'Black',
+                               'Full paths',
+                               'Height',
+                               'Width',
+                               'Diag',
+                               'Valid size',
+                               'Number extracted',
+                               ])
+    return cropped_df
+
+
+def export_cropped_images(bands_df, cropped_df):
+    with open('cropping_log.ini', 'a') as file:
+        file.write('NEW RUN*********\n')
+
+    corpus_size = bands_df.shape[0]
+    for i, row in bands_df.iterrows():
+        if i % 100 == 0:
+            progress_bar('Processing image #', i, corpus_size)
+            cropped_df.to_csv('image_databases/cropped_bands_df.csv')
+        try:
+            if bands_df['Overall valid'][i] and (not (cropped_df['Full paths'].fillna('missing') == bands_df['Full paths'][i]).any()):
+
+                formatted_bucket = '{0:0>4}'.format(bands_df['Bins'][i])
+                if not os.path.isdir(cropped_root + '/' + formatted_bucket):
+                    os.makedirs(cropped_root + '/' + formatted_bucket)
+
+                file_name = img_root + '/' + bands_df['Full paths'][i]
+                image = load_image(file_name)
+                greyscale_image = max_rgb2grey(image)
+                normalized_image = normalize_image(greyscale_image)
+                cropped_image = remove_bounding_box(normalized_image)
+                extracted_masks = mark_images_for_splitting(normalized_image)
+                number_extracted = len(extracted_masks)
+                carryover_data = ['Band', 'Country', 'Genre', 'Black']
+
+                height = normalized_image.shape[0]
+                width = normalized_image.shape[1]
+                diag = math.sqrt(height**2 + width**2)
+
+                new_name = bands_df['Full paths'][i]
+                new_name = re.sub(r'\?\d+', '', new_name)
+                save_image(cropped_image, cropped_root, new_name)
+
+                new_data_row = {'Valid size': None}
+                for entry in carryover_data:
+                    new_data_row[entry] = bands_df[entry][i]
+                new_data_row['Height'] = height
+                new_data_row['Width'] = width
+                new_data_row['Diag'] = diag
+                new_data_row['Number extracted'] = number_extracted
+                new_data_row['Full paths'] = new_name
+                cropped_df = cropped_df.append(new_data_row, ignore_index=True)
+        except:
+            with open('cropping_log.ini', 'a') as file:
+                file.write(bands_df['Full paths'][i] + '\n')
+    return cropped_df
+
+
+
+
+def move_splits_for_manual_review(cropped_df):
+
+    duplicates_df = cropped_df.loc[cropped_df['Number extracted'] > 1]
+    duplicates_size = duplicates_df.shape[0]
+    duplicates_df.index = range(duplicates_size)
+
+    for i, row in duplicates_df.iterrows():
+        if i % 50 == 0:
+            progress_bar('Processing image #', i, duplicates_size)
+
+        file_name = cropped_root + '/' + duplicates_df['Full paths'][i]
+        image = load_image(file_name)
+        greyscale_image = max_rgb2grey(image)
+        normalized_image = normalize_image(greyscale_image)
+        extracted_images = return_split_and_cropped_images(normalized_image)
+
+        formatted_bucket = '{0:0>4}'.format(duplicates_df['Bins'][i])
+        if not os.path.isdir(cropped_root + '/dupes/' + formatted_bucket):
+            os.makedirs(cropped_root + '/dupes/' + formatted_bucket)
+
+        for image_num in extracted_images:
+            individual_image = extracted_images[image_num]
+            new_name = duplicates_df['Full paths']
+            if image_num >= 2:
+                new_name = new_name[:-4] + '_' + str(image_num) + new_name[-4:]
+            save_image(individual_image, cropped_root + '/dupes/', new_name)
+
+
+
+
+
+# cropped_df = pd.read_csv('image_databases/cropped_bands_df.csv', index_col=0)
+
+# cropped_df['Aspect ratios'] = np.divide(cropped_df['Width'], cropped_df['Height'])
+# cropped_df['Abs aspect ratios'] = np.exp(np.abs(np.log(cropped_df['Aspect ratios'])))
+#
+# abs_aspect_ratios = list(cropped_df['Abs aspect ratios'])
+# abs_aspect_ratios.sort()
+# plot_arbitrary_array(abs_aspect_ratios)
+# view_distributions(cropped_df, 'Aspect ratios', 100, 'outputs/cropped_aspect_ratios.html')
+#
+# threshold = 6
+#
+# filtered_df = cropped_df[cropped_df['Abs aspect ratios'] < threshold]
+# diag = list(filtered_df['Diag'])
+# diag.sort()
+# plot_arbitrary_array(diag)
+# view_distributions(filtered_df, 'Diag', 100, 'outputs/cropped_diagonal_size.html')
+
+
 def main():
     bands_df = pd.read_csv('image_databases/downloaded_bands_df.csv', index_col=0)
 
@@ -111,9 +226,13 @@ def main():
     bands_df = validate_scores(bands_df)
     bands_df.to_csv('image_databases/downloaded_bands_df.csv')
 
-    view_distributions(bands_df, 'Blur scores', 100, 'blur_scores.html')
-    view_distributions(bands_df, 'Border scores', 100, 'border_scores.html')
+    view_distributions(bands_df, 'Blur scores', 100, 'outputs/blur_scores.html')
+    view_distributions(bands_df, 'Border scores', 100, 'outputs/border_scores.html')
     score_statistics(bands_df)
+
+    cropped_df = initialize_cropped_df()
+    cropped_df = export_cropped_images(bands_df, cropped_df)
+    cropped_df.to_csv('image_databases/cropped_bands_df.csv')
 
 
 

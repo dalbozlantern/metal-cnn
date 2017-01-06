@@ -127,71 +127,18 @@ def mask_to_border(greyscale_image, border=5):
     return border
 
 
-# Some images have 2 logos in one, stacked vertically
-# Some are bordered in black space
-# This returns an array {1: image1, ...} of just the split and cropped images
-def return_split_and_cropped_images(normalized_image):
+def remove_bounding_box(normalized_image):
+    mask = np.abs(normalized_image - np.array([0])) <= 2.5
 
-    def return_masks_from_averages(input_array, threshold=5):
-        # The input array marks "black" pixels as 1 and all others as 0
+    # Find the bounding box of those pixels
+    coords = np.array(np.nonzero(~mask))
+    top_left = np.min(coords, axis=1)
+    bottom_right = np.max(coords, axis=1)
 
-        # The input array toggles between 0 and 1; so, find out where the array changes
-        change_from_previous = np.array(
-            [1] + [input_array[i] != input_array[i - 1] for i in range(1, len(input_array))])
-        change_positions = [i for i in range(len(change_from_previous)) if change_from_previous[i] == 1]
-        change_positions += [len(
-            change_from_previous)]  # Tack on the overall length of the array to the end for subsequent manipulations
+    out = normalized_image[top_left[0]:bottom_right[0],
+          top_left[1]:bottom_right[1]]
 
-        # Now build a new array that just contains the lengths of the sequences of 0's and 1's
-        sequence_lengths = np.array(
-            [change_positions[i] - change_positions[i - 1] for i in range(1, len(change_positions))])
-
-        # And we want to ignore all sequences that are shorter than the threshold
-        # But to do this cleanly we map the sequence from (0, 1) --> (-1, 1)
-        inversion_array = 1 - 2 * (sequence_lengths <= threshold)
-        scaled_changes = [2 * input_array[i] - 1 for i in change_positions[:len(change_positions) - 1]]
-
-        # Now we "flip" the pixels that are part of short sequences, and map back to the (0, 1) space
-        denoised_mask = np.multiply(scaled_changes, inversion_array)
-        denoised_mask = .5 * (denoised_mask + 1)
-
-        # At this point we have "denoised" the toggling
-        # So next, we need to return the sections of continuous non-black pixels
-        # Do do this, we have to combine "repeated" sections of black/non-black that are left over from the denoising
-        left_bookends = np.array(change_positions[:len(
-            change_positions) - 1]) + 1  # Throughout this an the following steps, we add 1 to protect against multiplication by zero
-        right_bookends = np.array(change_positions[1:len(change_positions)]) + 1
-        number_of_seqs = len(denoised_mask)
-        left_mask = [denoised_mask[i] == 0 and (i == 0 or denoised_mask[i - 1] == 1) for i in range(number_of_seqs)]
-        right_mask = [denoised_mask[i] == 0 and (i == number_of_seqs - 1 or denoised_mask[i + 1] == 1) for i in
-                      range(number_of_seqs)]
-        segment_starts = [i - 1 for i in np.multiply(left_mask, left_bookends) if i != 0]
-        segment_ends = [i - 1 for i in np.multiply(right_mask, right_bookends) if i != 0]
-        blocks = [(segment_starts[i], segment_ends[i]) for i in range(len(segment_ends))]
-        return blocks
-
-    def extract_image_clipping_masks(normalized_image, dim, blackness_threshold=2.5):
-        length_along_dim = normalized_image.shape[dim]
-        pixels_are_black = np.zeros(length_along_dim)
-        for index_num in range(length_along_dim):
-            avg_inten = np.mean(normalized_image, 1 - dim)[index_num]
-            if avg_inten <= blackness_threshold:
-                pixels_are_black[index_num] = 1
-        blocks = return_masks_from_averages(pixels_are_black)
-        return blocks
-
-    vertical_blocks = extract_image_clipping_masks(normalized_image, 0)
-    extracted_images = {}
-    count = 0
-    for boundaries in vertical_blocks:
-        count += 1
-        vertical_crop = norm[boundaries[0]:boundaries[1]]
-        horizontal_blocks = extract_image_clipping_masks(vertical_crop, 1)
-        first_start = horizontal_blocks[0][0]
-        last_stop = horizontal_blocks[len(horizontal_blocks) - 1][1]
-        horizontal_crop = vertical_crop[:, range(first_start, last_stop)]
-        extracted_images[count] = horizontal_crop
-    return extracted_images
+    return out
 
 
 #===========================================================================
