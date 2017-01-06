@@ -160,8 +160,6 @@ def export_cropped_images(bands_df, cropped_df):
     return cropped_df
 
 
-
-
 def move_splits_for_manual_review(cropped_df):
 
     duplicates_df = cropped_df.loc[cropped_df['Number extracted'] > 1]
@@ -176,40 +174,105 @@ def move_splits_for_manual_review(cropped_df):
         image = load_image(file_name)
         greyscale_image = max_rgb2grey(image)
         normalized_image = normalize_image(greyscale_image)
-        extracted_images = return_split_and_cropped_images(normalized_image)
 
-        formatted_bucket = '{0:0>4}'.format(duplicates_df['Bins'][i])
+        formatted_bucket = duplicates_df['Full paths'][i]
+        if formatted_bucket[0] == '/':
+            formatted_bucket = formatted_bucket[1:]
+        formatted_bucket = re.sub(r'/[\s\S]*', '', duplicates_df['Full paths'][i])
         if not os.path.isdir(cropped_root + '/dupes/' + formatted_bucket):
             os.makedirs(cropped_root + '/dupes/' + formatted_bucket)
 
-        for image_num in extracted_images:
-            individual_image = extracted_images[image_num]
-            new_name = duplicates_df['Full paths']
-            if image_num >= 2:
-                new_name = new_name[:-4] + '_' + str(image_num) + new_name[-4:]
-            save_image(individual_image, cropped_root + '/dupes/', new_name)
+        save_image(individual_image, cropped_root + '/dupes/', duplicates_df['Full paths'][i])
 
 
+def re_import_dipes(cropped_df):
+    master_count = -1
+    for root, dirs, filenames in os.walk(cropped_root + '/dupes'):
+        for file_name in filenames:
+            master_count += 1
+
+    count = -1
+    for root, dirs, filenames in os.walk(cropped_root + '/dupes'):
+        for file_name in filenames:
+            count += 1
+
+            if count % 50 == 0:
+                progress_bar('Processing image #', count, master_count)
+
+            full_path = os.path.join(root, file_name)
+            bin_path = full_path[full_path[:full_path.rfind('/')].rfind(
+                '/') + 1:]  # Returns onward from after the second '/' from the right
+            dataframe_row = cropped_df[cropped_df['Full paths'] == bin_path]
+            dataframe_index = dataframe_row.index.tolist()[0]
+            cropped_data = dict(cropped_df.ix[dataframe_index])
+
+            image = load_image(full_path)
+            greyscale_image = max_rgb2grey(image)
+            normalized_image = normalize_image(greyscale_image)
+            extracted_images = return_split_and_cropped_images(normalized_image)
+
+            try:
+                os.remove(cropped_root + '/' + bin_path)
+            except:
+                pass
+            cropped_df.drop(cropped_df.index[[1, 3]])
+
+            for image_num in extracted_images:
+                individual_image = extracted_images[image_num]
+                height = individual_image.shape[0]
+                width = individual_image.shape[1]
+                diag = math.sqrt(height ** 2 + width ** 2)
+                new_name = bin_path
+                if new_name[0] == '/':
+                    new_name = new_name[1:]
+                if image_num >= 2:
+                    new_name = new_name[:-4] + '_' + str(image_num) + new_name[-4:]
+                cropped_data['Full paths'] = new_name
+                cropped_data['Height'] = height
+                cropped_data['Width'] = width
+                cropped_data['Diag'] = diag
+
+                save_image(individual_image, cropped_root, new_name)
+                cropped_df = cropped_df.append(cropped_data, ignore_index=True)
+    return cropped_df
 
 
+def image_size_analysis(cropped_df):
+    # Generate aspect ratios
+    cropped_df['Aspect ratios'] = np.divide(cropped_df['Width'], cropped_df['Height'])
+    log_ars = np.log(cropped_df['Aspect ratios'])
+    cropped_df['Intuitive aspect ratios'] = np.multiply(np.sign(log_ars), np.exp(np.abs(log_ars)))
+    cropped_df['Abs aspect ratios'] = np.exp(np.abs(log_ars))
 
-# cropped_df = pd.read_csv('image_databases/cropped_bands_df.csv', index_col=0)
+    # Analyze aspect ratios
+    int_aspect_ratios = list(cropped_df['Intuitive aspect ratios'])
+    int_aspect_ratios.sort()
+    plot_arbitrary_array(int_aspect_ratios, [-2, 10])
 
-# cropped_df['Aspect ratios'] = np.divide(cropped_df['Width'], cropped_df['Height'])
-# cropped_df['Abs aspect ratios'] = np.exp(np.abs(np.log(cropped_df['Aspect ratios'])))
-#
-# abs_aspect_ratios = list(cropped_df['Abs aspect ratios'])
-# abs_aspect_ratios.sort()
-# plot_arbitrary_array(abs_aspect_ratios)
-# view_distributions(cropped_df, 'Aspect ratios', 100, 'outputs/cropped_aspect_ratios.html')
-#
-# threshold = 6
-#
-# filtered_df = cropped_df[cropped_df['Abs aspect ratios'] < threshold]
-# diag = list(filtered_df['Diag'])
-# diag.sort()
-# plot_arbitrary_array(diag)
-# view_distributions(filtered_df, 'Diag', 100, 'outputs/cropped_diagonal_size.html')
+    # Trim based on aspect ratios
+    upper_threshold = 6
+    lower_threshold = -1.5
+    cropped_df['Valid size'] = np.multiply(cropped_df['Abs aspect ratios'] >= lower_threshold,
+                                           cropped_df['Abs aspect ratios'] <= upper_threshold)
+    percent_saved = np.mean(cropped_df['Valid size'])
+    print(percent_saved)
+
+    # Analyze resizing
+    target_box = 512
+    upscaling_threshold = 3
+    cropped_df['Max dim'] = np.maximum(cropped_df['Height'], cropped_df['Width'])
+    cropped_df['Scale factor'] = np.divide(target_box, cropped_df['Max dim'])
+    scale_factor = list(cropped_df['Scale factor'])
+    scale_factor.sort()
+    plot_arbitrary_array(scale_factor)
+
+    # Trim based on resizing
+    cropped_df['Valid size'] = np.multiply(np.multiply(cropped_df['Abs aspect ratios'] >= lower_threshold,
+                                                       cropped_df['Abs aspect ratios'] <= upper_threshold),
+                                           cropped_df['Scale factor'] <= upscaling_threshold)
+    percent_saved = np.mean(cropped_df['Valid size'])
+    print(percent_saved)
+    return cropped_df
 
 
 def main():
@@ -234,6 +297,25 @@ def main():
     cropped_df = export_cropped_images(bands_df, cropped_df)
     cropped_df.to_csv('image_databases/cropped_bands_df.csv')
 
+    move_splits_for_manual_review(cropped_df)
+    # ++++++++++++++++++++++++++++++++++++++++
+    # BREAK
+    # Then manually pruned false positives, which was most of them
+    # ++++++++++++++++++++++++++++++++++++++++
+    cropped_df = re_import_dipes(cropped_df)
+    cropped_df.to_csv('image_databases/cropped_bands_df.csv')
 
+    cropped_df = image_size_analysis(cropped_df)
+
+
+
+
+bands_df = pd.read_csv('image_databases/downloaded_bands_df.csv', index_col=0)
+cropped_df = pd.read_csv('image_databases/cropped_bands_df.csv', index_col=0)
+
+
+
+
+# cropped_df = pd.read_csv('image_databases/cropped_bands_df.csv', index_col=0)
 
 

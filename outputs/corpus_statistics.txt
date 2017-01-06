@@ -48,3 +48,6 @@ Because nothing says "METAL" like a thorough understanding of Bronstead acididty
 # of validated images in the corpus (including border, blur, and unicode):
 77758
 
+Once images were split, 94.9% of images were within the aspect ratio thresholds of 1.5:1 and 1:6
+After this trimming, 97.4% of images fell into the criterion of needing an upscaling factor <= 3 to fit snugly in a 512x512 grid
+In total, 92.4% of post-cropping images (73,321) were saved for resizing

@@ -68,7 +68,7 @@ def extract_bookmarks(sequence_lengths, scaled_values):
     return masks
 
 
-def extract_vertical_clipping_masks(normalized_image, blackness_threshold=2.5):
+def extract_vertical_clipping_masks(normalized_image, blackness_threshold=3):
     avg_inten = np.mean(normalized_image, 1)
     pixels_are_black = np.less(avg_inten, blackness_threshold)
     sequence_lengths, scaled_values = extract_preliminary_sequence_lengths(pixels_are_black)
@@ -82,7 +82,7 @@ def extract_vertical_clipping_masks(normalized_image, blackness_threshold=2.5):
 # Some are bordered in black space
 # This returns an array {1: image1, ...} of just the split and cropped images
 def return_split_and_cropped_images(normalized_image):
-    vertical_blocks = extract_vertical_clipping_masks(normalized_image, 0)
+    vertical_blocks = extract_vertical_clipping_masks(normalized_image, 3)
     extracted_images = {}
     count = 0
     for boundaries in vertical_blocks:
