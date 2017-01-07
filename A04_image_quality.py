@@ -183,7 +183,7 @@ def move_splits_for_manual_review(cropped_df):
         if not os.path.isdir(cropped_root + '/dupes/' + formatted_bucket):
             os.makedirs(cropped_root + '/dupes/' + formatted_bucket)
 
-        save_image(individual_image, cropped_root + '/dupes/', duplicates_df['Full paths'][i])
+        save_image(normalized_image, cropped_root + '/dupes/', duplicates_df['Full paths'][i])
 
 
 def re_import_dupes(cropped_df):
@@ -322,8 +322,8 @@ def resize_library(cropped_df, resized_df):
                 if formatted_bucket[0] == '/':
                     formatted_bucket = formatted_bucket[1:]
                 formatted_bucket = re.sub(r'/[\s\S]*', '', old_name)
-                if not os.path.isdir(resized_root + '/' + formatted_bucket):
-                    os.makedirs(resized_root + '/' + formatted_bucket)
+                if not os.path.isdir(resized_root + '/512/' + formatted_bucket):
+                    os.makedirs(resized_root + '/512/' + formatted_bucket)
 
                 file_name = cropped_root + '/' + old_name
                 image = load_image(file_name)
@@ -334,7 +334,7 @@ def resize_library(cropped_df, resized_df):
                 resized_image = loaded_image.resize([512, 512], PIL.Image.ANTIALIAS)
 
                 new_name = old_name[:old_name.rfind('.')] + '.png'
-                save_image(np.asarray(resized_image), resized_root, new_name)
+                save_image(np.asarray(resized_image), resized_root + '/512', new_name)
 
                 new_data_row = {'Full paths': new_name}
                 for entry in carryover_data:
@@ -342,10 +342,45 @@ def resize_library(cropped_df, resized_df):
                 resized_df = resized_df.append(new_data_row, ignore_index=True)
         except:
             with open('resizing_log.ini', 'a') as file:
-                file.write(bands_df['Full paths'][i] + '\n')
+                file.write(cropped_df['Full paths'][i] + '\n')
 
     return resized_df
 
+
+def iterative_resizing(resized_df):
+    with open('resizing_iterations_log.ini', 'a') as file:
+        file.write('NEW RUN*********\n')
+
+    corpus_size = resized_df.shape[0]
+    sizes = [256, 128, 64, 32, 16]
+
+    for i, row in resized_df.iterrows():
+        if i % 100 == 0:
+            progress_bar('Processing image #', i, corpus_size)
+        try:
+            file_name = resized_df['Full paths'][i]
+
+            formatted_bucket = file_name
+            if formatted_bucket[0] == '/':
+                formatted_bucket = formatted_bucket[1:]
+            formatted_bucket = re.sub(r'/[\s\S]*', '', file_name)
+
+            source_file = resized_root + '/512/' + file_name
+            image = load_image(source_file)
+            loaded_image = PIL.Image.fromarray(image)
+
+            for size in sizes:
+
+                new_root = resized_root + '/' + str(size) + '/'
+                if not os.path.isdir(new_root + formatted_bucket):
+                    os.makedirs(new_root + formatted_bucket)
+
+                resized_image = loaded_image.resize([size, size], PIL.Image.ANTIALIAS)
+                save_image(np.asarray(resized_image), resized_root + '/' + str(size), file_name)
+
+        except:
+            with open('resizing_iterations_log.ini', 'a') as file:
+                file.write(file_name + '\n')
 
 def main():
     bands_df = pd.read_csv('image_databases/downloaded_bands_df.csv', index_col=0)
@@ -382,3 +417,6 @@ def main():
     resized_df = initialize_resized_df()
     resized_df = resize_library(cropped_df, resized_df)
     resized_df.to_csv('image_databases/resized_logos_df.csv')
+
+    iterative_resizing(resized_df)
+
