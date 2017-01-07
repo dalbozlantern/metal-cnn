@@ -11,6 +11,7 @@ config = ConfigParser()
 config.read('config.ini')
 img_root = config.get('main', 'img_root')
 cropped_root = config.get('main', 'cropped_root')
+resized_root = config.get('main', 'resized_root')
 
 
 def analyze_image_scores(bands_df):
@@ -185,7 +186,7 @@ def move_splits_for_manual_review(cropped_df):
         save_image(individual_image, cropped_root + '/dupes/', duplicates_df['Full paths'][i])
 
 
-def re_import_dipes(cropped_df):
+def re_import_dupes(cropped_df):
     master_count = -1
     for root, dirs, filenames in os.walk(cropped_root + '/dupes'):
         for file_name in filenames:
@@ -275,6 +276,77 @@ def image_size_analysis(cropped_df):
     return cropped_df
 
 
+def pad_to_square_black(normalized_image):
+    max_dim = max(normalized_image.shape)
+    min_dim = min(normalized_image.shape)
+    short_axis = normalized_image.shape.index(min_dim)
+    short_padding = math.floor((max_dim - min_dim) / 2)
+    long_padding = math.ceil((max_dim - min_dim) / 2)
+    short_indices = [short_padding, max_dim]
+    long_indices = [long_padding, max_dim]
+    short_pad = np.zeros((short_indices[short_axis], short_indices[1-short_axis]))
+    long_pad = np.zeros((long_indices[short_axis], long_indices[1-short_axis]))
+    new_image = np.concatenate((short_pad, normalized_image, long_pad), short_axis)
+    new_shape = new_image.shape
+    assert new_shape[0] == new_shape[1]
+    return new_image
+
+
+def initialize_resized_df():
+    cropped_df = pd.DataFrame(columns=['Band',
+                               'Country',
+                               'Genre',
+                               'Black',
+                               'Full paths',
+                               ])
+    return cropped_df
+
+
+def resize_library(cropped_df, resized_df):
+    with open('resizing_log.ini', 'a') as file:
+        file.write('NEW RUN*********\n')
+
+    carryover_data = ['Band', 'Country', 'Genre', 'Black']
+    corpus_size = cropped_df.shape[0]
+
+    for i, row in cropped_df.iterrows():
+        if i % 100 == 0:
+            progress_bar('Processing image #', i, corpus_size)
+            resized_df.to_csv('image_databases/resized_logos_df.csv')
+        try:
+            if cropped_df['Valid size'][i]:
+
+                old_name = cropped_df['Full paths'][i]
+
+                formatted_bucket = old_name
+                if formatted_bucket[0] == '/':
+                    formatted_bucket = formatted_bucket[1:]
+                formatted_bucket = re.sub(r'/[\s\S]*', '', old_name)
+                if not os.path.isdir(resized_root + '/' + formatted_bucket):
+                    os.makedirs(resized_root + '/' + formatted_bucket)
+
+                file_name = cropped_root + '/' + old_name
+                image = load_image(file_name)
+                normalized_image = max_rgb2grey(image)
+                normalized_image = normalized_image
+                padded_image = pad_to_square_black(normalized_image)
+                loaded_image = PIL.Image.fromarray(padded_image)
+                resized_image = loaded_image.resize([512, 512], PIL.Image.ANTIALIAS)
+
+                new_name = old_name[:old_name.rfind('.')] + '.png'
+                save_image(np.asarray(resized_image), resized_root, new_name)
+
+                new_data_row = {'Full paths': new_name}
+                for entry in carryover_data:
+                    new_data_row[entry] = cropped_df[entry][i]
+                resized_df = resized_df.append(new_data_row, ignore_index=True)
+        except:
+            with open('resizing_log.ini', 'a') as file:
+                file.write(bands_df['Full paths'][i] + '\n')
+
+    return resized_df
+
+
 def main():
     bands_df = pd.read_csv('image_databases/downloaded_bands_df.csv', index_col=0)
 
@@ -302,20 +374,11 @@ def main():
     # BREAK
     # Then manually pruned false positives, which was most of them
     # ++++++++++++++++++++++++++++++++++++++++
-    cropped_df = re_import_dipes(cropped_df)
+    cropped_df = re_import_dupes(cropped_df)
     cropped_df.to_csv('image_databases/cropped_bands_df.csv')
 
     cropped_df = image_size_analysis(cropped_df)
 
-
-
-
-bands_df = pd.read_csv('image_databases/downloaded_bands_df.csv', index_col=0)
-cropped_df = pd.read_csv('image_databases/cropped_bands_df.csv', index_col=0)
-
-
-
-
-# cropped_df = pd.read_csv('image_databases/cropped_bands_df.csv', index_col=0)
-
-
+    resized_df = initialize_resized_df()
+    resized_df = resize_library(cropped_df, resized_df)
+    resized_df.to_csv('image_databases/resized_logos_df.csv')
