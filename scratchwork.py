@@ -70,8 +70,14 @@ plt.plot(indices, lengths)
 plt.yscale('log')
 plt.show()
 
+
+
+
+
+
 import collections
-a = collections.Counter('')
-for i in band_names:
-    a += collections.Counter(i)
-b = dict(a)
+char_list = collections.Counter('')
+for name in cleaned_names:
+    char_list += collections.Counter(name)
+char_list = dict(char_list)
+print(char_list)
