@@ -46,6 +46,8 @@ for serialized_example in tf.python_io.tf_record_iterator(file_name):
     example.ParseFromString(serialized_example)
 
     image = example.features.feature['image'].float_list.value
+    image = tf.cast(image, tf.float32) / 255
+    image
     label_matrix = example.features.feature['label_matrix'].float_list.value
     break
 
@@ -93,4 +95,4 @@ sess=tf.Session()
 init = tf.initialize_all_variables()
 sess.run(init)
 tf.train.start_queue_runners(sess=sess)
-x, y_actual = sess.run([images_batch, labels_batch])
+x, y_matrix = sess.run([images_batch, labels_batch])

@@ -6,18 +6,28 @@ config = ConfigParser()
 config.read('config.ini')
 resized_root = config.get('main', 'resized_root')
 
-with open(resized_root + '/' + 'file_name_queue.txt', 'r') as file:
-    file_name_queue = file.read().splitlines()
 
-band_name_matrices = np.load(resized_root + '/' + 'name_matrices.npy')
+
+
+
+hyperparams = {'hm_epochs': 10,
+               'train_dropout_keep': .7,
+               'print_every': 100,
+               'batch_size': 128,
+               'min_after_dequeue': 1000,
+               'img_size': 256,
+               }
+hyperparams['num_batches'] = 1  # TODO
+
+
 
 
 # INITIALIZE PLACEHOLDERS
-x = tf.placeholder(tf.float32, shape=[None, 256*256])
+x = tf.placeholder(tf.float32, shape=[None, hyperparams['img_size'] ** 2])
 y_actual = tf.placeholder(tf.float32, shape=[None, 20*39])
 
 x_image = tf.reshape(x, [-1, 256, 256, 1])
-y_matrix = tf.reshape(y_actual, [-1, 20, 29, 1])
+y_matrix = tf.reshape(y_actual, [-1, 20, 1, 39])
 
 dropout_keep_probability = tf.placeholder(tf.float32)
 
@@ -77,7 +87,7 @@ def build_graph(x, dropout_keep_probability):
     layer_3_out = build_layers_2_plus(layer_2_out, W1_l3, b1_l3, W2_l3, b2_l3, W3_l3, b3_l3)
 
     # Conv: [64 x 64 x 256] --> [32 x 32 x 512]
-    W1_l4 = initialize_weight_variable([3, 3, 64, 256])
+    W1_l4 = initialize_weight_variable([3, 3, 256, 512])
     b1_l4 = initialize_bias_variable([512])
     W2_l4 = initialize_weight_variable([3, 3, 512, 512])
     b2_l4 = initialize_bias_variable([512])
@@ -89,18 +99,18 @@ def build_graph(x, dropout_keep_probability):
     W1_l5 = initialize_weight_variable([3, 3, 512, 512])
     b1_l5 = initialize_bias_variable([512])
     W2_l5 = initialize_weight_variable([3, 3, 512, 512])
-    b2_l5 = initialize_bias_variable([1024])
+    b2_l5 = initialize_bias_variable([512])
     W3_l5 = initialize_weight_variable([3, 3, 512, 512])
-    b3_l5 = initialize_bias_variable([1024])
+    b3_l5 = initialize_bias_variable([512])
     layer_5_out = build_layers_2_plus(layer_4_out, W1_l5, b1_l5, W2_l5, b2_l5, W3_l5, b3_l5)
 
     # Conv: [16 x 16 x 512] --> [8 x 8 x 512]
     W1_l6 = initialize_weight_variable([3, 3, 512, 512])
     b1_l6 = initialize_bias_variable([512])
     W2_l6 = initialize_weight_variable([3, 3, 512, 512])
-    b2_l6 = initialize_bias_variable([1024])
+    b2_l6 = initialize_bias_variable([512])
     W3_l6 = initialize_weight_variable([3, 3, 512, 512])
-    b3_l6 = initialize_bias_variable([1024])
+    b3_l6 = initialize_bias_variable([512])
     layer_6_out = build_layers_2_plus(layer_5_out, W1_l6, b1_l6, W2_l6, b2_l6, W3_l6, b3_l6)
 
     # FC: [8 x 8 x 512] ~~ [8*8*512] --> [1024]
@@ -125,52 +135,6 @@ def build_graph(x, dropout_keep_probability):
     layer_9_out = tf.nn.relu(layer_9_hid + b1_l9)
 
     return layer_9_out
-
-
-def train_network(x, hyperparams):
-
-    # Model incorporation
-    predictions = build_graph(x)
-        # Input is a [batches=TBD, height=256, width=256, channel=1] tensor
-        # Output is a [batches=TBD, char_position=20, char_identity=39, N/A=1] tensor
-    cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(y_matrix, predictions, 2))
-    train_step = tf.train.AdamOptimizer().minimize(cost)
-    correct_prediction = tf.equal(tf.argmax(y_matrix, 2), tf.argmax(predictions, 2))
-    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-
-    # Running
-    with tf.Session() as sess:
-        sess.run(tf.initialize_all_variables())
-
-        print('Training...')
-        for epoch_num in range(hyperparams['hm_epochs']):
-
-            for batch_num in range(hyperparams['num_batches']):
-                batch = #TODO
-                valid_batch =  #TODO
-
-                if batch_num % hyperparams['print_every'] * 15 == 0:
-                    display_output_header()
-
-                if batch_num % hyperparams['print_every'] == 0:
-                    train_cost = cost.eval(feed_dict={x: batch[0], y_actual: batch[1],
-                                                      dropout_keep_probability: hyperparams['train_dropout_keep']
-                                                      })
-                    train_accuracy = accuracy.eval(feed_dict={x: batch[0], y_actual: batch[1],
-                                                              dropout_keep_probability: hyperparams['train_dropout_keep']
-                                                              })
-                    valid_cost = cost.eval(feed_dict={x: valid_batch[0], valid_batch: batch[1],
-                                                      dropout_keep_probability: 1.0
-                                                      })
-                    valid_accuracy = accuracy.eval(feed_dict={x: valid_batch[0], valid_batch: batch[1],
-                                                              dropout_keep_probability: 1.0
-                                                              })
-                    display_output_line(epoch_num, batch_num, train_cost, train_accuracy, valid_cost, valid_accuracy)
-
-    # TODO: saving params
-    # TODO: keeping running tabs / graphing
-
-
 
 
 def display_output_header():
@@ -202,14 +166,77 @@ def display_output_line(epoch_num, batch_num, train_cost, train_accuracy, valid_
           ' |  ' + space_format_percent(valid_accuracy) + '   |)')
 
 
+def read_and_decode_input_pair(file_name, img_size):
+    file_name_queue = tf.train.string_input_producer([file_name], num_epochs=None)
+    reader = tf.TFRecordReader()
+    _, serialized_pair = reader.read(file_name_queue)
+    components = tf.parse_single_example(serialized_pair,
+                                         features={'label_matrix': tf.FixedLenFeature([20*39], tf.float32),
+                                                   'image': tf.FixedLenFeature([img_size**2], tf.float32)})
+    # image = tf.reshape(components['image'], [img_size, img_size])
+    # image = tf.div(image, 255)
+    # label_matrix = tf.reshape(components['label_matrix'], [20, 39])
+    image = tf.div(components['image'], 255)
+    label_line = components['label_matrix']
+
+    return image, label_line
 
 
+file_name = resized_root + '/' + str(hyperparams['img_size']) + '_images_and_names.tfrecords'
+image, label_matrix = read_and_decode_input_pair(file_name, hyperparams['img_size'])
 
-hyperparams = {}
-hyperparams['hm_epochs'] = 10
-hyperparams['num_batches'] =  # TODO
-hyperparams['train_dropout_keep'] = .7
-hyperparams['print_every'] = 100
+images_batch, labels_batch = tf.train.shuffle_batch(
+    [image, label_matrix],
+    batch_size=hyperparams['batch_size'],
+    capacity=(3 * hyperparams['min_after_dequeue'] + hyperparams['batch_size']),
+    min_after_dequeue=hyperparams['min_after_dequeue']
+)
 
-train_network(x, hyperparams)
+# Model incorporation
+predictions = build_graph(x_image, hyperparams['train_dropout_keep'])
+    # Input is a [batches=TBD, height=256, width=256, channel=1] tensor
+    # Output is a [batches=TBD, char_position=20, char_identity=39, N/A=1] tensor
+#TODO: cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(y_matrix, predictions, 2))
+cost = tf.reduce_mean(tf.nn.l2_loss(tf.subtract(y_matrix, predictions)))
+train_step = tf.train.AdamOptimizer().minimize(cost)
+correct_prediction = tf.equal(tf.argmax(y_matrix, 2), tf.argmax(predictions, 2))
+accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
+# Running
+with tf.Session() as sess:
+    sess.run(tf.initialize_all_variables())
+    tf.train.start_queue_runners(sess=sess)
+
+    print('Training...')
+    for epoch_num in range(hyperparams['hm_epochs']):
+
+        for batch_num in range(hyperparams['num_batches']):
+            x, y_actual = sess.run([images_batch, labels_batch])
+            # valid_batch =  #TODO
+
+            if batch_num % hyperparams['print_every'] * 15 == 0:
+                display_output_header()
+
+            if batch_num % hyperparams['print_every'] == 0:
+                train_cost = cost.eval(feed_dict={x: x, y_actual: y_actual,
+                                                  dropout_keep_probability: hyperparams['train_dropout_keep']
+                                                  })
+                train_accuracy = accuracy.eval(feed_dict={x: x, y_actual: y_actual,
+                                                          dropout_keep_probability: hyperparams['train_dropout_keep']
+                                                          })
+                # valid_cost = cost.eval(feed_dict={x: valid_batch[0], valid_batch: batch[1],
+                #                                   dropout_keep_probability: 1.0
+                #                                   })
+                # valid_accuracy = accuracy.eval(feed_dict={x: valid_batch[0], valid_batch: batch[1],
+                #                                           dropout_keep_probability: 1.0
+                #                                           })
+                valid_cost = 0
+                valid_accuracy = 0
+                display_output_line(epoch_num, batch_num, train_cost, train_accuracy, valid_cost, valid_accuracy)
+
+            train_step.run(feed_dict={x: x, y_actual: y_actual,
+                                      dropout_keep_probability: hyperparams['train_dropout_keep']
+                                      })
+
+# TODO: saving params
+# TODO: keeping running tabs / graphing
