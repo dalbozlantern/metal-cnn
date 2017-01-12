@@ -104,7 +104,6 @@ def build_name_matrices(resized_df):
             char_matrix[char_index] = [0.0] * 38 + [1.0]
 
         names_bat[i] = char_matrix
-
     print('\n')
     return names_bat
 
@@ -115,13 +114,35 @@ def export_file_names(resized_df):
         for i in filename_queue:
             file.write(i + '\n')
 
+
+def main():
+    resized_df = pd.read_csv('image_databases/resized_logos_df.csv', index_col=0)
+    # analyze_band_names(resized_df)
+    resized_df = clean_df_names(resized_df)
+    resized_df.to_csv('image_databases/resized_logos_df.csv')
+    # analyze_cleaned_names(resized_df)
+    names_bat = build_name_matrices(resized_df)
+    np.save(resized_root + '/' + 'name_matrices', names_bat)
+    export_file_names(resized_df)
+    save_tf_binaries(resized_df, names_bat, 256)
+    # save_tf_binaries(resized_df, names_bat, 512)
+    # save_tf_binaries(resized_df, names_bat, 128)
+    # save_tf_binaries(resized_df, names_bat, 64)
+    # save_tf_binaries(resized_df, names_bat, 32)
+
+
+
 def save_tf_binaries(resized_df, names_bat, img_size):
     print('Building binary for ' + str(img_size) + '...')
     example_IDs = list(resized_df.index)
 
     np.random.shuffle(example_IDs)
     with tf.python_io.TFRecordWriter(resized_root + '/' + str(img_size) + '_images_and_names.tfrecords') as writer:
+        count = 0
         for example_num in tqdm(example_IDs):
+            count += 1
+            if count > 128*3:
+                break
             img_file_name = resized_df['Full paths'][example_num]
             image = np.array(misc.imread(resized_root + '/' + str(img_size) + '/' + img_file_name))
             image = np.reshape(image, (img_size ** 2))
@@ -143,20 +164,3 @@ def save_tf_binaries(resized_df, names_bat, img_size):
 
             serialized_data = example.SerializeToString()
             writer.write(serialized_data)
-
-
-def main():
-    resized_df = pd.read_csv('image_databases/resized_logos_df.csv', index_col=0)
-    # analyze_band_names(resized_df)
-    resized_df = clean_df_names(resized_df)
-    resized_df.to_csv('image_databases/resized_logos_df.csv')
-    # analyze_cleaned_names(resized_df)
-    names_bat = build_name_matrices(resized_df)
-    np.save(resized_root + '/' + 'name_matrices', names_bat)
-    export_file_names(resized_df)
-    # save_tf_binaries(resized_df, names_bat, 256)
-    save_tf_binaries(resized_df, names_bat, 512)
-    save_tf_binaries(resized_df, names_bat, 128)
-    save_tf_binaries(resized_df, names_bat, 64)
-    save_tf_binaries(resized_df, names_bat, 32)
-
