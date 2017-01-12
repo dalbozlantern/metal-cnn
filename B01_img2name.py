@@ -10,14 +10,14 @@ resized_root = config.get('main', 'resized_root')
 
 with tf.Graph().as_default():
 
-    hyperparams = {'hm_epochs': 10,
+    hyperparams = {'hm_epochs': int(73000/50),
                    'train_dropout_keep': .7,
-                   'print_every': 100,
-                   'batch_size': 128,
+                   'print_every': 1,
+                   'batch_size': 50,
                    'min_after_dequeue': 1000,
                    'img_size': 256,
                    }
-    hyperparams['num_batches'] = 1  # TODO
+    hyperparams['num_batches'] = 7  # TODO
 
 
 
@@ -42,76 +42,76 @@ with tf.Graph().as_default():
             initial = tf.constant(0.1, shape=shape)
             return tf.Variable(initial)
 
-        def build_layer_1(x, W1, b1, W2, b2):
+        def build_layer_1(x, W1, b1):  #, W2, b2
             hs1 = tf.nn.conv2d(x, W1, strides=[1, 1, 1, 1], padding='SAME')
             hs1r = tf.nn.relu(hs1 + b1)
-            hs2 = tf.nn.conv2d(hs1r, W2, strides=[1, 1, 1, 1], padding='SAME')
-            hs2r = tf.nn.relu(hs2 + b2)
-            hs3 = hs2r  # Placeholder for batch norm
+            # hs2 = tf.nn.conv2d(hs1r, W2, strides=[1, 1, 1, 1], padding='SAME')
+            # hs2r = tf.nn.relu(hs2 + b2)
+            hs3 = hs1r  # Placeholder for batch norm
             return hs3
 
-        def build_layers_2_plus(x, W1, b1, W2, b2, W3, b3):
+        def build_layers_2_plus(x, W1, b1):  #, W2, b2, W3, b3
             hs0 = tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
             hs1 = tf.nn.conv2d(hs0, W1, strides=[1, 1, 1, 1], padding='SAME')
             hs1r = tf.nn.relu(hs1 + b1)
-            hs2 = tf.nn.conv2d(hs1r, W2, strides=[1, 1, 1, 1], padding='SAME')
-            hs2r = tf.nn.relu(hs2 + b2)
-            hs3 = tf.nn.conv2d(hs2r, W3, strides=[1, 1, 1, 1], padding='SAME')
-            hs3r = tf.nn.relu(hs3 + b3)
-            hs4 = hs3r  # Placeholder for batch norm
+            # hs2 = tf.nn.conv2d(hs1r, W2, strides=[1, 1, 1, 1], padding='SAME')
+            # hs2r = tf.nn.relu(hs2 + b2)
+            # hs3 = tf.nn.conv2d(hs2r, W3, strides=[1, 1, 1, 1], padding='SAME')
+            # hs3r = tf.nn.relu(hs3 + b3)
+            hs4 = hs1r  # Placeholder for batch norm
             return hs4
 
         # Conv: Input ([256 x 256 x 1]) --> [256 x 256 x 64]
         W1_l1 = initialize_weight_variable([7, 7, 1, 64])
         b1_l1 = initialize_bias_variable([64])
-        W2_l1 = initialize_weight_variable([3, 3, 64, 64])
-        b2_l1 = initialize_bias_variable([64])
-        layer_1_out = build_layer_1(x, W1_l1, b1_l1, W2_l1, b2_l1)
+        # W2_l1 = initialize_weight_variable([3, 3, 64, 64])
+        # b2_l1 = initialize_bias_variable([64])
+        layer_1_out = build_layer_1(x, W1_l1, b1_l1)  #, W2_l1, b2_l1
 
         # Conv: [256 x 256 x 64] --> [128 x 128 x 128]
         W1_l2 = initialize_weight_variable([3, 3, 64, 128])
         b1_l2 = initialize_bias_variable([128])
-        W2_l2 = initialize_weight_variable([3, 3, 128, 128])
-        b2_l2 = initialize_bias_variable([128])
-        W3_l2 = initialize_weight_variable([3, 3, 128, 128])
-        b3_l2 = initialize_bias_variable([128])
-        layer_2_out = build_layers_2_plus(layer_1_out, W1_l2, b1_l2, W2_l2, b2_l2, W3_l2, b3_l2)
+        # W2_l2 = initialize_weight_variable([3, 3, 128, 128])
+        # b2_l2 = initialize_bias_variable([128])
+        # W3_l2 = initialize_weight_variable([3, 3, 128, 128])
+        # b3_l2 = initialize_bias_variable([128])
+        layer_2_out = build_layers_2_plus(layer_1_out, W1_l2, b1_l2)  #, W2_l2, b2_l2, W3_l2, b3_l2
 
         # Conv: [128 x 128 x 128] --> [64 x 64 x 256]
         W1_l3 = initialize_weight_variable([3, 3, 128, 256])
         b1_l3 = initialize_bias_variable([256])
-        W2_l3 = initialize_weight_variable([3, 3, 256, 256])
-        b2_l3 = initialize_bias_variable([256])
-        W3_l3 = initialize_weight_variable([3, 3, 256, 256])
-        b3_l3 = initialize_bias_variable([256])
-        layer_3_out = build_layers_2_plus(layer_2_out, W1_l3, b1_l3, W2_l3, b2_l3, W3_l3, b3_l3)
+        # W2_l3 = initialize_weight_variable([3, 3, 256, 256])
+        # b2_l3 = initialize_bias_variable([256])
+        # W3_l3 = initialize_weight_variable([3, 3, 256, 256])
+        # b3_l3 = initialize_bias_variable([256])
+        layer_3_out = build_layers_2_plus(layer_2_out, W1_l3, b1_l3)  #, W2_l3, b2_l3, W3_l3, b3_l3
 
         # Conv: [64 x 64 x 256] --> [32 x 32 x 512]
         W1_l4 = initialize_weight_variable([3, 3, 256, 512])
         b1_l4 = initialize_bias_variable([512])
-        W2_l4 = initialize_weight_variable([3, 3, 512, 512])
-        b2_l4 = initialize_bias_variable([512])
-        W3_l4 = initialize_weight_variable([3, 3, 512, 512])
-        b3_l4 = initialize_bias_variable([512])
-        layer_4_out = build_layers_2_plus(layer_3_out, W1_l4, b1_l4, W2_l4, b2_l4, W3_l4, b3_l4)
+        # W2_l4 = initialize_weight_variable([3, 3, 512, 512])
+        # b2_l4 = initialize_bias_variable([512])
+        # W3_l4 = initialize_weight_variable([3, 3, 512, 512])
+        # b3_l4 = initialize_bias_variable([512])
+        layer_4_out = build_layers_2_plus(layer_3_out, W1_l4, b1_l4)  #, W2_l4, b2_l4, W3_l4, b3_l4
 
         # Conv: [32 x 32 x 512] --> [16 x 16 x 512]
         W1_l5 = initialize_weight_variable([3, 3, 512, 512])
         b1_l5 = initialize_bias_variable([512])
-        W2_l5 = initialize_weight_variable([3, 3, 512, 512])
-        b2_l5 = initialize_bias_variable([512])
-        W3_l5 = initialize_weight_variable([3, 3, 512, 512])
-        b3_l5 = initialize_bias_variable([512])
-        layer_5_out = build_layers_2_plus(layer_4_out, W1_l5, b1_l5, W2_l5, b2_l5, W3_l5, b3_l5)
+        # W2_l5 = initialize_weight_variable([3, 3, 512, 512])
+        # b2_l5 = initialize_bias_variable([512])
+        # W3_l5 = initialize_weight_variable([3, 3, 512, 512])
+        # b3_l5 = initialize_bias_variable([512])
+        layer_5_out = build_layers_2_plus(layer_4_out, W1_l5, b1_l5)  #, W2_l5, b2_l5, W3_l5, b3_l5
 
         # Conv: [16 x 16 x 512] --> [8 x 8 x 512]
         W1_l6 = initialize_weight_variable([3, 3, 512, 512])
         b1_l6 = initialize_bias_variable([512])
-        W2_l6 = initialize_weight_variable([3, 3, 512, 512])
-        b2_l6 = initialize_bias_variable([512])
-        W3_l6 = initialize_weight_variable([3, 3, 512, 512])
-        b3_l6 = initialize_bias_variable([512])
-        layer_6_out = build_layers_2_plus(layer_5_out, W1_l6, b1_l6, W2_l6, b2_l6, W3_l6, b3_l6)
+        # W2_l6 = initialize_weight_variable([3, 3, 512, 512])
+        # b2_l6 = initialize_bias_variable([512])
+        # W3_l6 = initialize_weight_variable([3, 3, 512, 512])
+        # b3_l6 = initialize_bias_variable([512])
+        layer_6_out = build_layers_2_plus(layer_5_out, W1_l6, b1_l6)  #, W2_l6, b2_l6, W3_l6, b3_l6
 
         # FC: [8 x 8 x 512] ~~ [8*8*512] --> [1024]
         W1_l7 = initialize_weight_variable([8*8*512, 1024])
@@ -163,7 +163,7 @@ with tf.Graph().as_default():
               ' | ' + space_format_scientific(train_cost) + \
               ' |  ' + space_format_percent(train_accuracy) + \
               '   | ' + space_format_scientific(valid_cost) + \
-              ' |  ' + space_format_percent(valid_accuracy) + '   |)')
+              ' |  ' + space_format_percent(valid_accuracy) + '   |')
 
 
     def read_and_decode_input_pair(file_name, img_size):
@@ -197,13 +197,15 @@ with tf.Graph().as_default():
     #TODO: cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(y_matrix, predictions, 2))
     cost = tf.reduce_mean(tf.nn.l2_loss(tf.subtract(y_matrix, predictions)))
     train_step = tf.train.AdamOptimizer().minimize(cost)
-    correct_prediction = tf.equal(tf.argmax(y_matrix, 2), tf.argmax(predictions, 2))
-    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+    correct_prediction = tf.equal(tf.argmax(y_matrix, 3), tf.argmax(predictions, 3))
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32)) #TODO
 
     # Running
     with tf.Session() as sess:
         sess.run(tf.initialize_all_variables())
-        tf.train.start_queue_runners(sess=sess)
+        coord = tf.train.Coordinator()
+
+        tf.train.start_queue_runners(sess=sess, coord=coord)
 
         print('\n\n\nTraining...')
         for epoch_num in range(hyperparams['hm_epochs']):
@@ -212,7 +214,7 @@ with tf.Graph().as_default():
                 x_qq, y_actual_qq = sess.run([images_batch, labels_batch])
                 # valid_batch =  #TODO
 
-                if batch_num % hyperparams['print_every'] * 15 == 0:
+                if batch_num == 0:
                     display_output_header()
 
                 if batch_num % hyperparams['print_every'] == 0:
@@ -238,3 +240,15 @@ with tf.Graph().as_default():
 
     # TODO: saving params
     # TODO: keeping running tabs / graphing
+
+    coord.request_stop()
+    # coord.join([t])  TODO
+
+
+    # SCRATCHWORK
+    # fd_in = {x: x_qq, y_actual: y_actual_qq, dropout_keep_probability: hyperparams['train_dropout_keep']}
+    # def qth(arg):
+    #     return arg.eval(feed_dict=fd_in)
+    # pred = qth(predictions)
+    # y_m = qth(y_matrix)
+    # qth(tf.argmax(y_matrix, 3)).shape
