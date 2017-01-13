@@ -42,78 +42,34 @@ with tf.Graph().as_default():
             initial = tf.constant(0.1, shape=shape)
             return tf.Variable(initial)
 
-        def build_layer_1(x, W1, b1, W2, b2):  #
-            hs1 = tf.nn.conv2d(x, W1, strides=[1, 1, 1, 1], padding='SAME')
-            hs1r = tf.nn.relu(hs1 + b1)
-            hs2 = tf.nn.conv2d(hs1r, W2, strides=[1, 1, 1, 1], padding='SAME')
-            hs2r = tf.nn.relu(hs2 + b2)
-            bn_mean, bn_var = tf.nn.moments(hs2r, [0, 1, 2, 3])
-            hs3 = tf.nn.batch_normalization(hs2r, bn_mean, bn_var, offset=None, scale=None, variance_epsilon=1e-6)  # Placeholder for batch norm
-            return hs3
+        def conv_with_relu(x, in_depth, out_depth):
+            weights = initialize_weight_variable([3, 3, in_depth, out_depth])
+            bias = initialize_bias_variable([out_depth])
+            hidden_step = tf.nn.conv2d(x, weights, strides=[1, 1, 1, 1], padding='SAME')
+            return tf.nn.relu(hidden_step + bias)
 
-        def build_layers_2_plus(x, W1, b1, W2, b2):  #, W3, b3
-            hs0 = tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
-            hs1 = tf.nn.conv2d(hs0, W1, strides=[1, 1, 1, 1], padding='SAME')
-            hs1r = tf.nn.relu(hs1 + b1)
-            hs2 = tf.nn.conv2d(hs1r, W2, strides=[1, 1, 1, 1], padding='SAME')
-            hs2r = tf.nn.relu(hs2 + b2)
-            # hs3 = tf.nn.conv2d(hs2r, W3, strides=[1, 1, 1, 1], padding='SAME')
-            # hs3r = tf.nn.relu(hs3 + b3)
-            bn_mean, bn_var = tf.nn.moments(hs2r, [0, 1, 2, 3])
-            hs4 = tf.nn.batch_normalization(hs2r, bn_mean, bn_var, offset=None, scale=None, variance_epsilon=1e-6)  # Placeholder for batch norm
-            return hs4
 
-        # Conv: Input ([256 x 256 x 1]) --> [256 x 256 x 64]
-        W1_l1 = initialize_weight_variable([7, 7, 1, 64])
-        b1_l1 = initialize_bias_variable([64])
-        W2_l1 = initialize_weight_variable([3, 3, 64, 64])
-        b2_l1 = initialize_bias_variable([64])
-        layer_1_out = build_layer_1(x, W1_l1, b1_l1, W2_l1, b2_l1)  #
+        def encoder_layer(x, in_depth, out_depth, pool=True, conv=1):
+            if pool:
+                hidden_step_0 = tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+            else:
+                hidden_step_0 = x
+            hidden_step_1 = conv_with_relu(hidden_step_0, in_depth, out_depth)
+            if conv == 2:
+                hidden_step_2 = conv_with_relu(hidden_step_1, out_depth, out_depth)
+            else:
+                hidden_step_2 = hidden_step_1
+            bn_mean, bn_var = tf.nn.moments(hidden_step_2, [0, 1, 2, 3])
+            return tf.nn.batch_normalization(hidden_step_2, bn_mean, bn_var, offset=None, scale=None, variance_epsilon=1e-6)
 
-        # Conv: [256 x 256 x 64] --> [128 x 128 x 128]
-        W1_l2 = initialize_weight_variable([3, 3, 64, 128])
-        b1_l2 = initialize_bias_variable([128])
-        W2_l2 = initialize_weight_variable([3, 3, 128, 128])
-        b2_l2 = initialize_bias_variable([128])
-        # W3_l2 = initialize_weight_variable([3, 3, 128, 128])
-        # b3_l2 = initialize_bias_variable([128])
-        layer_2_out = build_layers_2_plus(layer_1_out, W1_l2, b1_l2, W2_l2, b2_l2)  #, W3_l2, b3_l2
 
-        # Conv: [128 x 128 x 128] --> [64 x 64 x 256]
-        W1_l3 = initialize_weight_variable([3, 3, 128, 256])
-        b1_l3 = initialize_bias_variable([256])
-        W2_l3 = initialize_weight_variable([3, 3, 256, 256])
-        b2_l3 = initialize_bias_variable([256])
-        # W3_l3 = initialize_weight_variable([3, 3, 256, 256])
-        # b3_l3 = initialize_bias_variable([256])
-        layer_3_out = build_layers_2_plus(layer_2_out, W1_l3, b1_l3, W2_l3, b2_l3)  #, W3_l3, b3_l3
+        layer_1_out = encoder_layer(x, 1, 64, pool=False)  # Conv: Input ([256 x 256 x 1]) --> [256 x 256 x 64]
+        layer_2_out = encoder_layer(layer_1_out, 64, 128)  # Conv: [256 x 256 x 64] --> [128 x 128 x 128]
+        layer_3_out = encoder_layer(layer_2_out, 128, 256)  # Conv: [128 x 128 x 128] --> [64 x 64 x 256]
+        layer_4_out = encoder_layer(layer_3_out, 256, 512)  # Conv: [64 x 64 x 256] --> [32 x 32 x 512]
+        layer_5_out = encoder_layer(layer_4_out, 512, 512)  # Conv: [32 x 32 x 512] --> [16 x 16 x 512]
+        layer_6_out = encoder_layer(layer_5_out, 512, 512)  # Conv: [16 x 16 x 512] --> [8 x 8 x 512]
 
-        # Conv: [64 x 64 x 256] --> [32 x 32 x 512]
-        W1_l4 = initialize_weight_variable([3, 3, 256, 512])
-        b1_l4 = initialize_bias_variable([512])
-        W2_l4 = initialize_weight_variable([3, 3, 512, 512])
-        b2_l4 = initialize_bias_variable([512])
-        # W3_l4 = initialize_weight_variable([3, 3, 512, 512])
-        # b3_l4 = initialize_bias_variable([512])
-        layer_4_out = build_layers_2_plus(layer_3_out, W1_l4, b1_l4, W2_l4, b2_l4)  #, W3_l4, b3_l4
-
-        # Conv: [32 x 32 x 512] --> [16 x 16 x 512]
-        W1_l5 = initialize_weight_variable([3, 3, 512, 512])
-        b1_l5 = initialize_bias_variable([512])
-        W2_l5 = initialize_weight_variable([3, 3, 512, 512])
-        b2_l5 = initialize_bias_variable([512])
-        # W3_l5 = initialize_weight_variable([3, 3, 512, 512])
-        # b3_l5 = initialize_bias_variable([512])
-        layer_5_out = build_layers_2_plus(layer_4_out, W1_l5, b1_l5, W2_l5, b2_l5)  #, W3_l5, b3_l5
-
-        # Conv: [16 x 16 x 512] --> [8 x 8 x 512]
-        W1_l6 = initialize_weight_variable([3, 3, 512, 512])
-        b1_l6 = initialize_bias_variable([512])
-        W2_l6 = initialize_weight_variable([3, 3, 512, 512])
-        b2_l6 = initialize_bias_variable([512])
-        # W3_l6 = initialize_weight_variable([3, 3, 512, 512])
-        # b3_l6 = initialize_bias_variable([512])
-        layer_6_out = build_layers_2_plus(layer_5_out, W1_l6, b1_l6, W2_l6, b2_l6)  #, W3_l6, b3_l6
 
         # FC: [8 x 8 x 512] ~~ [8*8*512] --> [1024]
         W1_l7 = initialize_weight_variable([8*8*512, 1024])
