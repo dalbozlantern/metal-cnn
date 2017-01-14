@@ -6,7 +6,7 @@ config = ConfigParser()
 config.read('config.ini')
 resized_root = config.get('main', 'resized_root')
 from utils.utils import progress_bar
-
+from matplotlib import pyplot as plt
 
 with tf.Graph().as_default():
 
@@ -15,7 +15,7 @@ with tf.Graph().as_default():
                    'print_every': 1,
                    'batch_size': 1,  #TODO
                    'min_after_dequeue': 1000,
-                   'img_size': 256,
+                   'img_size': 64,
                    }
     hyperparams['num_batches'] = 1  # TODO
 
@@ -26,7 +26,7 @@ with tf.Graph().as_default():
     x = tf.placeholder(tf.float32, shape=[None, hyperparams['img_size'] ** 2])
     y_actual = tf.placeholder(tf.float32, shape=[None, 20*39])
 
-    x_image = tf.reshape(x, [-1, 256, 256, 1])
+    x_image = tf.reshape(x, [-1, hyperparams['img_size'], hyperparams['img_size'], 1])
     y_matrix = tf.reshape(y_actual, [-1, 20, 1, 39])
 
     dropout_keep_probability = tf.placeholder(tf.float32)
@@ -48,7 +48,7 @@ with tf.Graph().as_default():
             hidden_step = tf.nn.conv2d(x, weights, strides=[1, 1, 1, 1], padding='SAME')
             return tf.nn.relu(hidden_step + bias)
 
-        def encoder_layer(x, in_depth, out_depth, pool=True, conv=2)
+        def encoder_layer(x, in_depth, out_depth, pool=True, conv=2):
             if pool:
                 hidden_step_0 = tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
             else:
@@ -61,7 +61,7 @@ with tf.Graph().as_default():
             bn_mean, bn_var = tf.nn.moments(hidden_step_2, [0, 1, 2, 3])
             return tf.nn.batch_normalization(hidden_step_2, bn_mean, bn_var, offset=None, scale=None, variance_epsilon=1e-6)
 
-
+0
         def decoder_layer(x, in_depth, out_depth, in_height, out_height, stride=2):
             bn_mean, bn_var = tf.nn.moments(x, [0, 1, 2, 3])
             hidden_step_0 = tf.nn.batch_normalization(x, bn_mean, bn_var, offset=None, scale=None, variance_epsilon=1e-6)
@@ -70,17 +70,15 @@ with tf.Graph().as_default():
             hidden_step_1 = tf.nn.conv2d_transpose(hidden_step_0, filter=weights, output_shape=[1, out_height, out_height, out_depth], strides=[1, stride, stride, 1], padding='SAME')
             return tf.nn.relu(hidden_step_1 + bias)
 
-        layer_1_out = encoder_layer(x, 1, 64, pool=False)  # Conv: Input ([256 x 256 x 1]) --> [256 x 256 x 64]
-        layer_2_out = encoder_layer(layer_1_out, 64, 128)  # Conv: [256 x 256 x 64] --> [128 x 128 x 128]
-        layer_3_out = encoder_layer(layer_2_out, 128, 256)  # Conv: [128 x 128 x 128] --> [64 x 64 x 256]
-        layer_4_out = encoder_layer(layer_3_out, 256, 512)  # Conv: [64 x 64 x 256] --> [32 x 32 x 512]
-        layer_5_out = encoder_layer(layer_4_out, 512, 512)  # Conv: [32 x 32 x 512] --> [16 x 16 x 512]
-        layer_6_out = encoder_layer(layer_5_out, 512, 512)  # Conv: [16 x 16 x 512] --> [8 x 8 x 512]
+        layer_1_out = encoder_layer(x, 1, 64, pool=False)
+        layer_2_out = encoder_layer(layer_1_out, 64, 128)
+        layer_3_out = encoder_layer(layer_2_out, 128, 256)
+        layer_4_out = encoder_layer(layer_3_out, 256, 512)
 
         # FC: [8 x 8 x 512] ~~ [8*8*512] --> [1024]
         W1_l7 = initialize_weight_variable([8*8*512, 1024])
         b1_l7 = initialize_bias_variable([1024])
-        layer_7_in = tf.reshape(layer_6_out, [-1, 8*8*512])
+        layer_7_in = tf.reshape(layer_4_out, [-1, 8*8*512])
         layer_7_hid = tf.nn.relu(tf.matmul(layer_7_in, W1_l7) + b1_l7)
         layer_7_out = layer_7_hid  # placeholder for batch norm
         layer_7_dropout = tf.nn.dropout(layer_7_out, dropout_keep_probability)
@@ -104,17 +102,15 @@ with tf.Graph().as_default():
         layer_10_reshape = tf.reshape(layer_10_hid, [-1, 8, 8, 512])
         layer_10_out = layer_10_reshape  # placeholder for batch norm
 
-        layer_11_out = decoder_layer(layer_10_out, 512, 512, 8, 16)  # Conv: [16 x 16 x 512] <-- [8 x 8 x 512]
-        layer_12_out = decoder_layer(layer_11_out, 512, 512, 16, 32)  # Conv: [32 x 32 x 512] <-- [16 x 16 x 512]
-        layer_13_out = decoder_layer(layer_12_out, 512, 256, 32, 64)  # Conv: [64 x 64 x 256] <-- [32 x 32 x 512]
-        layer_14_out = decoder_layer(layer_13_out, 256, 128, 64, 128)  # Conv: [128 x 128 x 128] <-- [64 x 64 x 256]
-        layer_15_out = decoder_layer(layer_14_out, 128, 64, 128, 256)
-        layer_16_out = decoder_layer(layer_15_out, 64, 32, 256, 256, stride=1)
-        layer_17_out = decoder_layer(layer_16_out, 32, 16, 256, 256, stride=1)
-        layer_18_out = decoder_layer(layer_17_out, 16, 8, 256, 256, stride=1)
-        layer_19_out = decoder_layer(layer_18_out, 8, 4, 256, 256, stride=1)
-        layer_20_out = decoder_layer(layer_19_out, 4, 2, 256, 256, stride=1)
-        reconstruction = decoder_layer(layer_20_out, 2, 1, 256, 256, stride=1)
+        layer_11_out = decoder_layer(layer_10_out, 512, 256, 8, 16)
+        layer_12_out = decoder_layer(layer_11_out, 256, 128, 16, 32)
+        layer_13_out = decoder_layer(layer_12_out, 128, 64, 32, 64)
+        layer_14_out = decoder_layer(layer_13_out, 64, 32, 64, 64, stride=1)
+        layer_15_out = decoder_layer(layer_14_out, 32, 16, 64, 64, stride=1)
+        layer_16_out = decoder_layer(layer_15_out, 16, 8, 64, 64, stride=1)
+        layer_17_out = decoder_layer(layer_16_out, 8, 4, 64, 64, stride=1)
+        layer_28_out = decoder_layer(layer_17_out, 4, 2, 64, 64, stride=1)
+        reconstruction = decoder_layer(layer_28_out, 2, 1, 64, 64, stride=1)
 
         return reconstruction
 
@@ -168,7 +164,7 @@ with tf.Graph().as_default():
                 x_qq, y_actual_qq = sess.run([images_batch, labels_batch])
                 # valid_batch =  #TODO
                 if count == 0:
-                    show_image(np.reshape(x_qq[0], (256, 256))*255)
+                    show_image(np.reshape(x_qq[0], (hyperparams['img_size'], hyperparams['img_size']))*255)
 
 
                 if batch_num % hyperparams['print_every'] == 0:
@@ -193,10 +189,19 @@ with tf.Graph().as_default():
                 output_img = reconstructions.eval(feed_dict={x: x_qq, y_actual: y_actual_qq,
                                           dropout_keep_probability: hyperparams['train_dropout_keep']
                                           })
-                output_img = np.reshape(output_img[0], (256, 256))
+                output_img = np.reshape(output_img[0], (hyperparams['img_size'], hyperparams['img_size']))
+                #
+                # if count > 10:
+                #     plt.ion()
+                #     plt.plot(costs)
+                #     plt.yscale('log')
+                #     plt.xscale('log')
+                #     plt.pause(0.0000001)
 
                 if count % 1000 == 0:
                     show_image(output_img*255)
+
+
 
                     # TODO: saving params
     # TODO: keeping running tabs / graphing
@@ -206,7 +211,7 @@ with tf.Graph().as_default():
 
 show_image(output_img*255)
 
-from matplotlib import pyplot as plt
+#
 plt.plot(costs)
 plt.yscale('log')
 plt.xscale('log')

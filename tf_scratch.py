@@ -195,16 +195,15 @@ predictions = build_graph(x_image, hyperparams['train_dropout_keep'])
     # Input is a [batches=TBD, height=256, width=256, channel=1] tensor
     # Output is a [batches=TBD, char_position=20, char_identity=39, N/A=1] tensor
 # cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(predictions, y_matrix, 3))
-cost = tf.reduce_mean(tf.nn.l2_loss(tf.subtract(y_matrix, predictions)))
-train_step = tf.train.AdamOptimizer().minimize(cost)
-correct_prediction = tf.equal(tf.argmax(y_matrix, 3), tf.argmax(predictions, 3))
-accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32)) #TODO
+# cost = tf.reduce_mean(tf.nn.l2_loss(tf.subtract(y_matrix, predictions)))
+# train_step = tf.train.AdamOptimizer().minimize(cost)
+# correct_prediction = tf.equal(tf.argmax(y_matrix, 3), tf.argmax(predictions, 3))
+# accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32)) #TODO
 
 # Running
 sess = tf.InteractiveSession()
 sess.run(tf.initialize_all_variables())
 coord = tf.train.Coordinator()
-
 tf.train.start_queue_runners(sess=sess, coord=coord)
 
 print('\n\n\nTraining...')
@@ -215,12 +214,12 @@ x_qq, y_actual_qq = sess.run([images_batch, labels_batch])
 # valid_batch =  #TODO
 
 
-train_step.run(feed_dict={x: x_qq, y_actual: y_actual_qq,
-                          dropout_keep_probability: hyperparams['train_dropout_keep']
-                          })
-
-# TODO: saving params
-# TODO: keeping running tabs / graphing
+# train_step.run(feed_dict={x: x_qq, y_actual: y_actual_qq,
+#                           dropout_keep_probability: hyperparams['train_dropout_keep']
+#                           })
+#
+# # TODO: saving params
+# # TODO: keeping running tabs / graphing
 
 
 
