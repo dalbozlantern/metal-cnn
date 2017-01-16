@@ -61,7 +61,7 @@ with tf.Graph().as_default():
             bn_mean, bn_var = tf.nn.moments(hidden_step_2, [0, 1, 2, 3])
             return tf.nn.batch_normalization(hidden_step_2, bn_mean, bn_var, offset=None, scale=None, variance_epsilon=1e-6)
 
-0
+
         def decoder_layer(x, in_depth, out_depth, in_height, out_height, stride=2):
             bn_mean, bn_var = tf.nn.moments(x, [0, 1, 2, 3])
             hidden_step_0 = tf.nn.batch_normalization(x, bn_mean, bn_var, offset=None, scale=None, variance_epsilon=1e-6)

@@ -30,9 +30,9 @@ resized_root = config.get('main', 'resized_root')
 IMAGE_DIM = 256
 BATCH_SIZE = 5
 MIN_AFTER_DEQUEUE = 1000
-N_EPOCHS = 1000
+N_EPOCHS = 10000
 LEARNING_RATE = 0.01
-LATENT_DIM = 15
+LATENT_DIM = 30
 FILE_NAME = resized_root + '/' + str(IMAGE_DIM) + '_images_and_names.tfrecords'
 
 
@@ -65,9 +65,9 @@ images_batch, labels_batch = tf.train.shuffle_batch(
 
 def autoencoder(input_shape=[None, IMAGE_DIM ** 2],
                 latent_dim=LATENT_DIM,
-                n_filters=[1, 10, 10, 10, 10, 3],
-                strides=[2, 2, 2, 2, 2],
-                filter_sizes=[7, 3, 3, 3, 3, 3],
+                n_filters=[1] + [10]*4 + [3],
+                strides=[2] * 6,
+                filter_sizes=[7] + [3]*5,
                 corruption=False):
 
     # Input to the network
@@ -107,9 +107,11 @@ def autoencoder(input_shape=[None, IMAGE_DIM ** 2],
                 1.0 / math.sqrt(n_input)))
         b = tf.Variable(tf.zeros([n_output]))
         encoder.append(W)
+        bn_mean, bn_var = tf.nn.moments(current_input, [0, 1, 2, 3])
+        hidden_step = tf.nn.batch_normalization(current_input, bn_mean, bn_var, offset=None, scale=None, variance_epsilon=1e-6)
         output = lrelu(
             tf.add(tf.nn.conv2d(
-                current_input, W, strides=[1, strides[layer_i], strides[layer_i], 1], padding='SAME'), b))
+                hidden_step, W, strides=[1, strides[layer_i], strides[layer_i], 1], padding='SAME'), b))
         current_input = output
 
     # Fully connected
@@ -132,13 +134,19 @@ def autoencoder(input_shape=[None, IMAGE_DIM ** 2],
 
     # Build the decoder using the same weights
     for layer_i, shape in enumerate(shapes):
-        W = encoder[layer_i]
+        # W = encoder[layer_i]
+        W = tf.Variable(
+            tf.random_uniform(encoder[layer_i].get_shape(),
+                -1.0 / math.sqrt(n_input),
+                1.0 / math.sqrt(n_input)))
         b = tf.Variable(tf.zeros([W.get_shape().as_list()[2]]))
+        bn_mean, bn_var = tf.nn.moments(current_input, [0, 1, 2, 3])
+        hidden_step = tf.nn.batch_normalization(current_input, bn_mean, bn_var, offset=None, scale=None, variance_epsilon=1e-6)
         output = lrelu(tf.add(
             tf.nn.conv2d_transpose(
-                current_input, W,
+                hidden_step, W,
                 tf.pack([tf.shape(x)[0], shape[1], shape[2], shape[3]]),
-                strides=[1, 2, 2, 1], padding='SAME'), b))
+                strides=[1, strides[layer_i], strides[layer_i], 1], padding='SAME'), b))
         current_input = output
 
     # Now have the reconstruction through the network
@@ -160,6 +168,7 @@ tf.train.start_queue_runners(sess=sess, coord=coord)
 sess.run(tf.initialize_all_variables())
 
 # Fit all training data
+costs = []
 for epoch_i in range(N_EPOCHS):
     for batch_i in range(1): #TODO
         batch_xs, _ = sess.run([images_batch, labels_batch])
@@ -172,6 +181,7 @@ for epoch_i in range(N_EPOCHS):
         format_cost = str(cost_reported) #TODO
         info_string = 'Epoch: ' + format_epoch + ' | Cost: ' + format_cost
         progress_bar(info_string, epoch_i, N_EPOCHS)  #TODO
+        costs += [cost_reported]
 
 # Plot example reconstructions
 n_examples = 5
@@ -198,5 +208,8 @@ for i in range(5):
 plt.tight_layout()
 plt.show()
 
-
+plt.plot(costs)
+plt.xscale('log')
+plt.yscale('log')
+plt.show()
 

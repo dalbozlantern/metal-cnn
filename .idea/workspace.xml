@@ -2,14 +2,13 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="505a355f-bc6e-48d8-ba32-cc69826cb8b5" name="Default" comment="">
-      <change type="MOVED" beforePath="$PROJECT_DIR$/09_convolutional_autoencoder.py" afterPath="$PROJECT_DIR$/tf_conv_ae.py" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/B01_img2name.py" afterPath="$PROJECT_DIR$/_old/B01_img2name.py" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/B01_img2name2.py" afterPath="$PROJECT_DIR$/_old/B01_img2name2.py" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/B02_ae.py" afterPath="$PROJECT_DIR$/_old/B02_ae.py" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/tf_scratch.py" afterPath="$PROJECT_DIR$/_old/tf_scratch.py" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/tf_scratch2.py" afterPath="$PROJECT_DIR$/_old/tf_scratch2.py" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/MNIST_data/t10k-images-idx3-ubyte.gz" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/MNIST_data/t10k-labels-idx1-ubyte.gz" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/MNIST_data/train-images-idx3-ubyte.gz" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/MNIST_data/train-labels-idx1-ubyte.gz" afterPath="" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/utils/utils.py" afterPath="$PROJECT_DIR$/utils/utils.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/_old/B02_ae.py" afterPath="$PROJECT_DIR$/_old/B02_ae.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/tf_conv_ae.py" afterPath="$PROJECT_DIR$/tf_conv_ae.py" />
     </list>
     <ignored path="metal-cnn.iws" />
     <ignored path=".idea/workspace.xml" />
@@ -32,8 +31,8 @@
       <file leaf-file-name="B02_ae.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/_old/B02_ae.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="289">
-              <caret line="81" column="40" selection-start-line="81" selection-start-column="36" selection-end-line="81" selection-end-column="40" />
+            <state relative-caret-position="576">
+              <caret line="61" column="124" selection-start-line="60" selection-start-column="12" selection-end-line="61" selection-end-column="124" />
               <folding>
                 <element signature="e#1246#1325#0" expanded="false" />
               </folding>
@@ -44,8 +43,8 @@
       <file leaf-file-name="tf_conv_ae.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/tf_conv_ae.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="532">
-              <caret line="172" column="57" selection-start-line="172" selection-start-column="57" selection-end-line="172" selection-end-column="57" />
+            <state relative-caret-position="452">
+              <caret line="146" column="27" selection-start-line="146" selection-start-column="27" selection-end-line="146" selection-end-column="27" />
               <folding>
                 <element signature="e#185#203#0" expanded="true" />
               </folding>
@@ -110,15 +109,16 @@
         <option value="$PROJECT_DIR$/B02_ae.py" />
         <option value="$PROJECT_DIR$/09_convolutional_autoencoder.py" />
         <option value="$PROJECT_DIR$/utils/utils.py" />
+        <option value="$PROJECT_DIR$/_old/B02_ae.py" />
         <option value="$PROJECT_DIR$/tf_conv_ae.py" />
       </list>
     </option>
   </component>
   <component name="ProjectFrameBounds">
-    <option name="x" value="717" />
-    <option name="y" value="52" />
-    <option name="width" value="1192" />
-    <option name="height" value="1028" />
+    <option name="x" value="65" />
+    <option name="y" value="-4" />
+    <option name="width" value="1855" />
+    <option name="height" value="1084" />
   </component>
   <component name="ProjectLevelVcsManager" settingsEditedManually="false">
     <OptionsSetting value="true" id="Add" />
@@ -145,6 +145,7 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
+      <pane id="Scratches" />
       <pane id="ProjectPane">
         <subPane>
           <PATH>
@@ -193,7 +194,6 @@
           </PATH>
         </subPane>
       </pane>
-      <pane id="Scratches" />
       <pane id="Scope" />
     </panes>
   </component>
@@ -375,10 +375,10 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="717" y="52" width="1192" height="1028" extended-state="4" />
+    <frame x="65" y="-4" width="1855" height="1084" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.19895288" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.12714207" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="LuaJ" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
@@ -641,9 +641,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="806">
           <caret line="76" column="12" selection-start-line="76" selection-start-column="12" selection-end-line="76" selection-end-column="12" />
-          <folding>
-            <element signature="e#872#1452#0" expanded="false" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -651,9 +648,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="2790">
           <caret line="158" column="23" selection-start-line="158" selection-start-column="15" selection-end-line="158" selection-end-column="23" />
-          <folding>
-            <element signature="e#0#23#0" expanded="true" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -661,7 +655,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="810">
           <caret line="48" column="11" selection-start-line="48" selection-start-column="11" selection-end-line="48" selection-end-column="44" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -692,14 +685,13 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="289">
           <caret line="239" column="0" selection-start-line="239" selection-start-column="0" selection-end-line="256" selection-end-column="15" />
-          <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/_old/B02_ae.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="289">
-          <caret line="81" column="40" selection-start-line="81" selection-start-column="36" selection-end-line="81" selection-end-column="40" />
+        <state relative-caret-position="576">
+          <caret line="61" column="124" selection-start-line="60" selection-start-column="12" selection-end-line="61" selection-end-column="124" />
           <folding>
             <element signature="e#1246#1325#0" expanded="false" />
           </folding>
@@ -708,8 +700,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/tf_conv_ae.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="532">
-          <caret line="172" column="57" selection-start-line="172" selection-start-column="57" selection-end-line="172" selection-end-column="57" />
+        <state relative-caret-position="452">
+          <caret line="146" column="27" selection-start-line="146" selection-start-column="27" selection-end-line="146" selection-end-column="27" />
           <folding>
             <element signature="e#185#203#0" expanded="true" />
           </folding>
