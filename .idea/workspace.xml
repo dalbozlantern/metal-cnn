@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="505a355f-bc6e-48d8-ba32-cc69826cb8b5" name="Default" comment="">
-      <change type="MOVED" beforePath="$PROJECT_DIR$/tf_conv_ae2.py" afterPath="$PROJECT_DIR$/tf_conv_ae.py" />
+      <change type="MOVED" beforePath="$PROJECT_DIR$/tf_conv_ae.py" afterPath="$PROJECT_DIR$/tf_conv_ae2.py" />
     </list>
     <ignored path="metal-cnn.iws" />
     <ignored path=".idea/workspace.xml" />
@@ -34,16 +34,28 @@
           </provider>
         </entry>
       </file>
+      <file leaf-file-name="tf_conv_ae2.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/tf_conv_ae2.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="368">
+              <caret line="97" column="24" selection-start-line="97" selection-start-column="24" selection-end-line="97" selection-end-column="24" />
+              <folding>
+                <element signature="e#5159#6333#0" expanded="false" />
+                <element signature="e#5275#5767#0" expanded="false" />
+                <element signature="e#6395#7086#0" expanded="false" />
+                <element signature="e#7204#7859#0" expanded="false" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
       <file leaf-file-name="tf_conv_ae.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/tf_conv_ae.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="358">
-              <caret line="81" column="28" selection-start-line="81" selection-start-column="28" selection-end-line="81" selection-end-column="28" />
+            <state relative-caret-position="429">
+              <caret line="172" column="34" selection-start-line="172" selection-start-column="34" selection-end-line="172" selection-end-column="34" />
               <folding>
-                <element signature="e#2889#3544#0" expanded="false" />
-                <element signature="e#3589#3832#0" expanded="false" />
-                <element signature="e#3874#3909#0" expanded="false" />
-                <element signature="e#3951#4708#0" expanded="false" />
+                <element signature="e#4255#5147#0" expanded="false" />
               </folding>
             </state>
           </provider>
@@ -127,15 +139,15 @@
         <option value="$PROJECT_DIR$/utils/utils.py" />
         <option value="$PROJECT_DIR$/_old/B02_ae.py" />
         <option value="$PROJECT_DIR$/nvidia-killer.sh" />
-        <option value="$PROJECT_DIR$/tf_conv_ae.py" />
         <option value="$PROJECT_DIR$/tf_conv_ae2.py" />
+        <option value="$PROJECT_DIR$/tf_conv_ae.py" />
       </list>
     </option>
   </component>
   <component name="ProjectFrameBounds">
     <option name="x" value="65" />
     <option name="y" value="52" />
-    <option name="width" value="927" />
+    <option name="width" value="1145" />
     <option name="height" value="1028" />
   </component>
   <component name="ProjectLevelVcsManager" settingsEditedManually="false">
@@ -393,10 +405,10 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="65" y="52" width="927" height="1028" extended-state="4" />
+    <frame x="65" y="52" width="1145" height="1028" extended-state="4" />
     <editor active="true" />
     <layout>
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.27128264" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.21747042" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="LuaJ" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
@@ -441,12 +453,11 @@
           <option name="timeStamp" value="6" />
         </line-breakpoint>
       </breakpoints>
-      <option name="time" value="18" />
+      <option name="time" value="19" />
     </breakpoint-manager>
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/todo_list.txt" />
     <entry file="file://$PROJECT_DIR$/.gitignore">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="72">
@@ -704,7 +715,7 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/tf_conv_ae.py">
+    <entry file="file://$PROJECT_DIR$/tf_conv_ae2.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="1818">
           <caret line="113" column="20" selection-start-line="113" selection-start-column="20" selection-end-line="113" selection-end-column="20" />
@@ -714,15 +725,25 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/tf_conv_ae2.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="368">
+          <caret line="97" column="24" selection-start-line="97" selection-start-column="24" selection-end-line="97" selection-end-column="24" />
+          <folding>
+            <element signature="e#5159#6333#0" expanded="false" />
+            <element signature="e#5275#5767#0" expanded="false" />
+            <element signature="e#6395#7086#0" expanded="false" />
+            <element signature="e#7204#7859#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/tf_conv_ae.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="358">
-          <caret line="81" column="28" selection-start-line="81" selection-start-column="28" selection-end-line="81" selection-end-column="28" />
+        <state relative-caret-position="429">
+          <caret line="172" column="34" selection-start-line="172" selection-start-column="34" selection-end-line="172" selection-end-column="34" />
           <folding>
-            <element signature="e#2889#3544#0" expanded="false" />
-            <element signature="e#3589#3832#0" expanded="false" />
-            <element signature="e#3874#3909#0" expanded="false" />
-            <element signature="e#3951#4708#0" expanded="false" />
+            <element signature="e#4255#5147#0" expanded="false" />
           </folding>
         </state>
       </provider>

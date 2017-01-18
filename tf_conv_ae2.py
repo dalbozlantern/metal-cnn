@@ -30,7 +30,7 @@ resized_root = config.get('main', 'resized_root')
 IMAGE_DIM = 256
 BATCH_SIZE = 5
 MIN_AFTER_DEQUEUE = 1000
-N_EPOCHS = 500
+N_EPOCHS = 1000
 LEARNING_RATE = 0.01
 LATENT_DIM = 64**2
 FILE_NAME = resized_root + '/' + str(IMAGE_DIM) + '_images_and_names.tfrecords'
@@ -63,12 +63,128 @@ images_batch, labels_batch = tf.train.shuffle_batch(
 #=======================================================================================
 # Graph construction
 
+def init_weight(shape):
+    init = tf.truncated_normal(shape, stddev=0.1)
+    return tf.Variable(init)
+
+def init_bias(shape):
+    return tf.Variable(tf.zeros(shape))
+
+
+class encoder(object):
+    def __init__(self, input_data):
+        self.bn_means = [None]
+        self.bn_vars = [None]
+        self.weights = [None]
+        self.biases = [None]
+        self.outputs = [input_data]
+        self.counter = 0
+
+    def step(self, n_output, filter_size, stride_step):
+        self.counter += 1
+        n_input = self.outputs[self.counter - 1].get_shape().as_list()[3]
+        bn_mean, bn_var = tf.nn.moments(self.outputs[self.counter - 1], [0, 1, 2, 3])
+        self.bn_means += [bn_mean]
+        self.bn_vars += [bn_var]
+        normalized = tf.nn.batch_normalization(self.outputs[self.counter - 1],
+                                               self.bn_means[self.counter], self.bn_vars[self.counter],
+                                               offset=None, scale=None, variance_epsilon=1e-6)
+        self.weights += [init_weight([filter_size, filter_size, n_input, n_output])]
+        self.biases += [init_bias([n_output])]
+        convolved = tf.nn.conv2d(normalized, self.weights[self.counter], strides=[1, stride_step, stride_step, 1], padding='SAME')
+        self.outputs += lrelu(tf.add(convolved, self.biases[self.counter]))
+
+    def get_layer(self, level):
+        return self.outputs[level]
+
+    def get_outputs(self):
+        return self.outputs
+
+    def get_weights(self):
+        return self.weights
+
+
+class decoder(object):
+    def __init__(self, decoder_inputs, enc):
+        self.bn_means = [None] * 6
+        self.bn_vars = [None] * 6
+        self.weights = [None] * 6
+        self.biases = [None] * 6
+        self.outputs = [None] * 6
+        self.counter = 5
+        self.decoder_inputs = decoder_inputs
+        self.enc = enc
+
+    def step(self, current_input, stride_step, depth):
+        self.counter += -1
+        shape = self.enc.get_outputs()[self.counter].get_shape().as_list()
+        weight_shape = self.enc.get_weights()[self.counter+1]
+        bn_mean, bn_var = tf.nn.moments(current_input, [0, 1, 2, 3])
+        self.bn_means[depth] += [bn_mean]
+        self.bn_vars[depth] += [bn_var]
+        normalized = tf.nn.batch_normalization(current_input,
+                                               self.bn_means[depth][self.counter], self.bn_vars[depth][self.counter],
+                                               offset=None, scale=None, variance_epsilon=1e-6)
+        self.weights[depth] += init_weight(weight_shape)
+        bias_shape = self.weights[depth][self.counter].get_shape().as_list()[2]
+        self.biases[depth] += init_bias(bias_shape)
+        deconvolved = tf.nn.conv2d_transpose(
+            normalized, self.weights[depth][self.counter],
+            tf.pack([tf.shape(self.x)[0], shape[1], shape[2], shape[3]]),
+            strides=[1, stride_step, stride_step, 1], padding='SAME')
+        self.outputs[depth] += lrelu(tf.add(deconvolved, self.biases[depth][self.counter]))
+
+    def get_layer(self, depth, level):
+        return self.outputs[depth][level]
+
+
+class fc_layer(object):
+
+    def __init__(self, latent_dim):
+        self.latent_dim = latent_dim
+
+    def compress(self, input_matrix):
+        self.pre_latent_shape = input_matrix.get_shape().as_list()[1:]
+        self.pre_latent_size = np.product(self.pre_latent_shape)
+        self.fc_compression = tf.divide(float(self.latent_dim), self.pre_latent_size)
+        self.W_fc_in = init_weight([self.pre_latent_size, self.latent_dim])
+        self.b_fc_in = init_bias(self.latent_dim)
+        input_matrix = tf.reshape(input_matrix, [-1, self.pre_latent_size])
+        self.z = lrelu(tf.matmul(input_matrix, self.W_fc_in) + self.b_fc_in)
+
+    def expand(self):
+        self.W_fc_out = init_weight([self.latent_dim, self.pre_latent_size])
+        self.b_fc_out = init_bias(self.pre_latent_size)
+        hidden_step = lrelu(tf.matmul(self.z, self.W_fc_out) + self.b_fc_out)
+        self.output = tf.reshape(hidden_step, [-1] + self.pre_latent_shape)
+
+    def expand_arbitrary_vector(self, input_vector):
+        self.z = input_vector
+        self.expand()
+
+    def execute(self, input_matrix):
+        self.compress(input_matrix)
+        self.expand()
+
+    def get_output(self):
+        return self.output
+
+
 class autoencoder(object):
     def __init__(self):
         self.input_shape = [None, IMAGE_DIM ** 2]
         self.latent_dim = LATENT_DIM
-        self.layers_deep = 3
+        self.layers_deep = 6
         self.corruption = False
+
+        # self.n_filters = [1, 10, 10] + [10, 10, 10]*4 + [3, 3, 3]
+        # self.striders = [2, 1, 1] * 6
+        # self.filter_sizes = [7, 3, 3] + [3, 3, 3]*5
+
+        # self.duplication = 2
+        # self.n_filters = [1, 10] + [10, 10]*4 + [3, 3]
+        # self.striders = [2, 1] * 6
+        # self.filter_sizes = [7, 3] + [3, 3]*5
 
         self.duplication = 1
         self.n_filters = [1] + [10]*4 + [3]
@@ -99,99 +215,27 @@ class autoencoder(object):
         else:
             raise ValueError('Unsupported input dimensions')
 
-
-    def init_weight(self, shape):
-        init = tf.truncated_normal(shape, stddev=0.1)
-        return tf.Variable(init)
-
-    def init_bias(self, shape):
-        return tf.Variable(tf.zeros(shape))
-
-
-    def fully_connected(self):
-        pre_latent_shape = self.enc_outputs[-1].get_shape().as_list()[1:]
-        pre_latent_size = np.product(pre_latent_shape)
-        self.compression = tf.divide(float(self.latent_dim), pre_latent_size)
-
-        W_fc_in = self.init_weight([pre_latent_size, self.latent_dim])
-        b_fc_in = self.init_bias(self.latent_dim)
-        W_fc_out = self.init_weight([self.latent_dim, pre_latent_size])
-        b_fc_out = self.init_bias(pre_latent_size)
-        hidden_1 = tf.reshape(self.enc_outputs[-1], [-1, pre_latent_size])
-        self.z = lrelu(tf.matmul(hidden_1, W_fc_in) + b_fc_in)
-        hidden_2 = lrelu(tf.matmul(self.z, W_fc_out) + b_fc_out)
-        self.fc_out = tf.reshape(hidden_2, [-1] + pre_latent_shape)
-
-
-    def encoder_step(self, counter, n_input, n_output, filter_size, stride_step):
-        self.shapes.append(self.enc_outputs[counter - 1].get_shape().as_list())
-        bn_mean, bn_var = tf.nn.moments(self.enc_outputs[counter - 1], [0, 1, 2, 3])
-        self.enc_bn_means += [bn_mean]
-        self.enc_bn_vars += [bn_var]
-        normalized = tf.nn.batch_normalization(self.enc_outputs[counter - 1],
-                                               self.enc_bn_means[counter], self.enc_bn_vars[counter],
-                                               offset=None, scale=None, variance_epsilon=1e-6)
-        self.enc_weights += [self.init_weight([filter_size, filter_size, n_input, n_output])]
-        self.enc_biases += [self.init_bias([n_output])]
-        convolved = tf.nn.conv2d(normalized, self.enc_weights[counter], strides=[1, stride_step, stride_step, 1], padding='SAME')
-        output = lrelu(tf.add(convolved, self.enc_biases[counter]))
-        self.enc_outputs += [output]
-
-
-    def decoder_step(self, counter, weight_shape, shape, stride_step):
-        bn_mean, bn_var = tf.nn.moments(self.dec_outputs[counter-1], [0, 1, 2, 3])
-        self.dec_bn_means += [bn_mean]
-        self.dec_bn_vars += [bn_var]
-        normalized = tf.nn.batch_normalization(self.dec_outputs[counter-1],
-                                               self.dec_bn_means[counter], self.dec_bn_vars[counter],
-                                               offset=None, scale=None, variance_epsilon=1e-6)
-        self.dec_weights += [self.init_weight(weight_shape)]
-        bias_shape = self.dec_weights[counter].get_shape().as_list()[2]
-        self.dec_biases += [self.init_bias(bias_shape)]
-        deconvolved = tf.nn.conv2d_transpose(
-                normalized, self.dec_weights[counter],
-                tf.pack([tf.shape(self.x)[0], shape[1], shape[2], shape[3]]),
-                strides=[1, stride_step, stride_step, 1], padding='SAME')
-        output = lrelu(tf.add(deconvolved, self.dec_biases[counter]))
-        self.dec_outputs += [output]
-
-
     def build_graph(self):
         if self.corruption:
-            self.x_tensor = corrupt(self.x_tensor) # Optionally apply denoising autoencoder
+            self.x_tensor = corrupt(self.x_tensor)  # Optionally apply denoising autoencoder
 
-        self.enc_weights = [None]
-        self.enc_biases = [None]
-        self.enc_bn_means = [None]
-        self.enc_bn_vars = [None]
-        self.enc_outputs = [self.x_tensor]
-
-        self.shapes = []
-        qz = 6 * self.duplication
-        for layer_i in range(1, qz):
+        enc = encoder(self.x_tensor)
+        for layer_i in range(1, 6 * self.duplication):
             n_output = self.n_filters[layer_i]
-            n_input = self.enc_outputs[layer_i - 1].get_shape().as_list()[3]
-            self.encoder_step(layer_i, n_input, n_output, self.filter_sizes[layer_i - 1], self.striders[layer_i - 1])
+            enc.step(n_output, self.filter_sizes[layer_i - 1], self.striders[layer_i - 1])
 
-        self.fully_connected()
+        fc = fc_layer(self.latent_dim)
+        fc.execute(enc.get_layer(5))
+        decoder_inputs = enc.get_outputs() + fc.get_output()
 
-        self.dec_weights = [None]
-        self.dec_biases = [None]
-        self.dec_bn_means = [None]
-        self.dec_bn_vars = [None]
-        self.dec_outputs = [self.fc_out]
+        dec = decoder(decoder_inputs, enc)
+        for layer_i in range(0, (6 * self.duplication) - 1):
+            reversed_index = (6 * self.duplication) - 2 - layer_i
+            dec.step(self.striders[reversed_index])
 
-        for layer_i in range(0, qz - 1):
-            reversed_index = qz - 2 - layer_i
-            shape = self.shapes[reversed_index]
-            weight_shape = self.enc_weights[reversed_index + 1].get_shape()
-            self.decoder_step(layer_i+1, weight_shape, shape, self.striders[reversed_index])
-
-        self.y = self.dec_outputs[-1]  # Pass the current state from the previous operations
+        self.y = dec.get_layer(6, 0)
         self.cost = tf.reduce_sum(tf.square(self.y - self.x_tensor))
 
-
-#===============================================================================================
 
 ae = autoencoder()
 optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(ae.cost)
