@@ -29,10 +29,10 @@ resized_root = config.get('main', 'resized_root')
 
 IMAGE_DIM = 256
 BATCH_SIZE = 5
-MIN_AFTER_DEQUEUE = 1000
-N_EPOCHS = 10000
+MIN_AFTER_DEQUEUE = 3000
+N_EPOCHS = 1000
 LEARNING_RATE = 0.01
-LATENT_DIM = 30
+LATENT_DIM = 32
 FILE_NAME = resized_root + '/' + str(IMAGE_DIM) + '_images_and_names.tfrecords'
 
 
@@ -62,12 +62,18 @@ images_batch, labels_batch = tf.train.shuffle_batch(
 
 #=======================================================================================
 # Graph construction
-
+# class autoencoder(object):
 def autoencoder(input_shape=[None, IMAGE_DIM ** 2],
                 latent_dim=LATENT_DIM,
-                n_filters=[1] + [10]*4 + [3],
-                strides=[2] * 6,
-                filter_sizes=[7] + [3]*5,
+                # n_filters=[1, 10, 10] + [10, 10, 10]*4 + [3, 3, 3],
+                # striders=[2, 1, 1] * 6,
+                # filter_sizes=[7, 3, 3] + [3, 3, 3]*5,
+                n_filters=[1, 10] + [10, 10]*4 + [3, 3],
+                striders=[2, 1] * 6,
+                filter_sizes=[7, 3] + [3, 3]*5,
+                # n_filters=[1] + [10]*4 + [3],
+                # striders=[2] * 6,
+                # filter_sizes=[7] + [3]*5,
                 corruption=False):
 
     # Input to the network
@@ -95,6 +101,7 @@ def autoencoder(input_shape=[None, IMAGE_DIM ** 2],
     # Build the encoder
     encoder = []
     shapes = []
+    counter = 0
     for layer_i, n_output in enumerate(n_filters[1:]):
         n_input = current_input.get_shape().as_list()[3]
         shapes.append(current_input.get_shape().as_list())
@@ -111,7 +118,7 @@ def autoencoder(input_shape=[None, IMAGE_DIM ** 2],
         hidden_step = tf.nn.batch_normalization(current_input, bn_mean, bn_var, offset=None, scale=None, variance_epsilon=1e-6)
         output = lrelu(
             tf.add(tf.nn.conv2d(
-                hidden_step, W, strides=[1, strides[layer_i], strides[layer_i], 1], padding='SAME'), b))
+                hidden_step, W, strides=[1, striders[layer_i], striders[layer_i], 1], padding='SAME'), b))
         current_input = output
 
     # Fully connected
@@ -146,7 +153,7 @@ def autoencoder(input_shape=[None, IMAGE_DIM ** 2],
             tf.nn.conv2d_transpose(
                 hidden_step, W,
                 tf.pack([tf.shape(x)[0], shape[1], shape[2], shape[3]]),
-                strides=[1, strides[layer_i], strides[layer_i], 1], padding='SAME'), b))
+                strides=[1, striders[layer_i], striders[layer_i], 1], padding='SAME'), b))
         current_input = output
 
     # Now have the reconstruction through the network
@@ -154,7 +161,7 @@ def autoencoder(input_shape=[None, IMAGE_DIM ** 2],
     # Cost function measures pixel-wise difference
     cost = tf.reduce_sum(tf.square(y - x_tensor))
 
-    return {'x': x, 'z': z, 'y': y, 'cost': cost}
+    return {'x': x, 'y': y, 'cost': cost}
 
 
 ae = autoencoder()
@@ -172,8 +179,10 @@ costs = []
 for epoch_i in range(N_EPOCHS):
     for batch_i in range(1): #TODO
         batch_xs, _ = sess.run([images_batch, labels_batch])
-        # train = np.array([img - mean_img for img in batch_xs])
-        train = batch_xs #new
+        # batch_xs_f = np.reshape(batch_xs, (BATCH_SIZE, IMAGE_DIM, IMAGE_DIM))
+        # batch_xs_f = [np.fft.fftshift(np.fft.fft2(batch_xs_f[i])) for i in range(len(batch_xs))]
+        # batch_xs_f = np.reshape(batch_xs, (BATCH_SIZE, IMAGE_DIM * IMAGE_DIM))=
+        train = batch_xs
         sess.run(optimizer, feed_dict={ae['x']: train})
     if epoch_i % 25 == 0:
         format_epoch = str(epoch_i) #TODO
@@ -186,6 +195,9 @@ for epoch_i in range(N_EPOCHS):
 # Plot example reconstructions
 n_examples = 5
 test_xs, _ = sess.run([images_batch, labels_batch])
+# test_xs_f = np.reshape(test_xs, (BATCH_SIZE, IMAGE_DIM, IMAGE_DIM))
+# test_xs_f = [np.fft.fftshift(np.fft.fft2(test_xs_f[i])) for i in range(len(test_xs_f))]
+# test_xs_f = np.reshape(test_xs_f, (BATCH_SIZE, IMAGE_DIM * IMAGE_DIM))
 
 test_xs_norm = test_xs #new
 recon = sess.run(ae['y'], feed_dict={ae['x']: test_xs_norm})
@@ -196,7 +208,6 @@ recon = sess.run(ae['y'], feed_dict={ae['x']: test_xs_norm})
 
 plt.figure(figsize=(8, 12))
 for i in range(5):
-
     plt.subplot(5, 2, 2*i + 1)
     plt.imshow(test_xs[i].reshape(IMAGE_DIM, IMAGE_DIM), vmin=0, vmax=1, cmap="gray")
     plt.title("Test input")
@@ -207,6 +218,21 @@ for i in range(5):
     plt.colorbar()
 plt.tight_layout()
 plt.show()
+
+
+# plt.figure(figsize=(8, 12))
+# for i in range(5):
+#     plt.subplot(5, 2, 2*i + 1)
+#     plt.imshow(np.fft.ifft2(np.fft.ifftshift(test_xs_f[i])).reshape(IMAGE_DIM, IMAGE_DIM), vmin=0, vmax=1, cmap="gray")
+#     plt.title("Test input")
+#     plt.colorbar()
+#     plt.subplot(5, 2, 2*i + 2)
+#     plt.imshow(np.fft.ifft2(np.fft.ifftshift(recon[i])).reshape(IMAGE_DIM, IMAGE_DIM), vmin=0, vmax=1, cmap="gray")
+#     plt.title("Reconstruction")
+#     plt.colorbar()
+# plt.tight_layout()
+# plt.show()
+
 
 plt.plot(costs)
 plt.xscale('log')
