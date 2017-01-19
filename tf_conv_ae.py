@@ -138,22 +138,29 @@ class autoencoder(object):
         self.enc_outputs += [output]
 
 
-    def decoder_step(self, counter, weight_shape, shape, stride_step):
-        bn_mean, bn_var = tf.nn.moments(self.dec_outputs[counter-1], [0, 1, 2, 3])
-        self.dec_bn_means += [bn_mean]
-        self.dec_bn_vars += [bn_var]
-        normalized = tf.nn.batch_normalization(self.dec_outputs[counter-1],
-                                               self.dec_bn_means[counter], self.dec_bn_vars[counter],
-                                               offset=None, scale=None, variance_epsilon=1e-6)
-        self.dec_weights += [self.init_weight(weight_shape)]
-        bias_shape = self.dec_weights[counter].get_shape().as_list()[2]
-        self.dec_biases += [self.init_bias(bias_shape)]
-        deconvolved = tf.nn.conv2d_transpose(
-                normalized, self.dec_weights[counter],
-                tf.pack([tf.shape(self.x)[0], shape[1], shape[2], shape[3]]),
-                strides=[1, stride_step, stride_step, 1], padding='SAME')
-        output = lrelu(tf.add(deconvolved, self.dec_biases[counter]))
-        self.dec_outputs += [output]
+    def decoder_step(self, depth, counter, weight_shape, shape, stride_step):
+        if counter >= depth:
+            bn_mean, bn_var = tf.nn.moments(self.dec_outputs[depth][counter-1], [0, 1, 2, 3])  # 0, 1, 2, 3, 4
+            self.dec_bn_means[depth] += [bn_mean]
+            self.dec_bn_vars[depth] += [bn_var]
+            normalized = tf.nn.batch_normalization(self.dec_outputs[depth][counter-1], # 0, 1, 2, 3, 4
+                                                   self.dec_bn_means[depth][counter], self.dec_bn_vars[depth][counter],  # 1, 2, 3, 4, 5
+                                                   offset=None, scale=None, variance_epsilon=1e-6)
+            self.dec_weights[depth] += [self.init_weight(weight_shape)]
+            bias_shape = self.dec_weights[depth][counter].get_shape().as_list()[2]  # 1, 2, 3, 4, 5
+            self.dec_biases[depth] += [self.init_bias(bias_shape)]
+            deconvolved = tf.nn.conv2d_transpose(
+                    normalized, self.dec_weights[depth][counter],  # 1, 2, 3, 4, 5
+                    tf.pack([tf.shape(self.x)[0], shape[1], shape[2], shape[3]]),
+                    strides=[1, stride_step, stride_step, 1], padding='SAME')
+            output = lrelu(tf.add(deconvolved, self.dec_biases[depth][counter]))  # 1, 2, 3, 4, 5
+            self.dec_outputs[depth][counter] = output
+        else:
+            self.dec_bn_means[depth] += [None]
+            self.dec_bn_vars[depth] += [None]
+            self.dec_weights[depth] += [None]
+            self.dec_biases[depth] += [None]
+
 
 
     def build_graph(self):
@@ -175,26 +182,33 @@ class autoencoder(object):
 
         self.fully_connected()
 
-        self.dec_weights = [None]
-        self.dec_biases = [None]
-        self.dec_bn_means = [None]
-        self.dec_bn_vars = [None]
-        self.dec_outputs = [self.fc_out]
+        self.dec_weights = [[None]] * 6
+        self.dec_biases = [[None]] * 6
+        self.dec_bn_means = [[None]] * 6
+        self.dec_bn_vars = [[None]] * 6
+        outputs_init = [self.fc_out] + [self.enc_outputs[5-i] for i in range(5)]
+        self.dec_outputs = [outputs_init] * 6
+        # self.dec_outputs = [[self.fc_out]] + [[None]*(i+1) + [self.enc_outputs[5-i]] for i in range(5)]
 
-        for layer_i in range(0, qz - 1):
-            reversed_index = qz - 2 - layer_i
-            shape = self.shapes[reversed_index]
-            weight_shape = self.enc_weights[reversed_index + 1].get_shape()
-            self.decoder_step(layer_i+1, weight_shape, shape, self.striders[reversed_index])
+        self.ys = []
+        self.costs = []
+        for depth in range(0, 1):
+            for layer_i in range(0, qz - 1):
+                reversed_index = qz - 2 - layer_i
+                shape = self.shapes[reversed_index]
+                weight_shape = self.enc_weights[reversed_index + 1].get_shape()
+                self.decoder_step(depth, layer_i+1, weight_shape, shape, self.striders[reversed_index])
 
-        self.y = self.dec_outputs[-1]  # Pass the current state from the previous operations
-        self.cost = tf.reduce_sum(tf.square(self.y - self.x_tensor))
+            self.ys += [self.dec_outputs[depth][-1]]  # Pass the current state from the previous operations
+            self.costs += [tf.reduce_sum(tf.square(self.ys[depth] - self.x_tensor))]
 
 
 #===============================================================================================
 
+test = 0
+
 ae = autoencoder()
-optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(ae.cost)
+optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(ae.costs[test])
 
 # We create a session to use the graph
 tf.Graph().as_default()
@@ -218,7 +232,7 @@ for epoch_i in range(N_EPOCHS):
         sess.run(optimizer, feed_dict={ae.x: train})
     if epoch_i % 25 == 0:
         format_epoch = str(epoch_i) #TODO
-        cost_reported = sess.run(ae.cost, feed_dict={ae.x: train})
+        cost_reported = sess.run(ae.costs[test], feed_dict={ae.x: train})
         format_cost = str(cost_reported) #TODO
         info_string = 'Depth: ' + str(depth) + ' | Epoch: ' + format_epoch + ' | Cost: ' + format_cost
         progress_bar(info_string, epoch_i, N_EPOCHS)  #TODO
@@ -232,7 +246,7 @@ test_xs, _ = sess.run([images_batch, labels_batch])
 # test_xs_f = np.reshape(test_xs_f, (BATCH_SIZE, IMAGE_DIM * IMAGE_DIM))
 
 test_xs_norm = test_xs #new
-recon = sess.run(ae.y, feed_dict={ae.x: test_xs_norm})
+recon = sess.run(ae.ys[test], feed_dict={ae.x: test_xs_norm})
 
 
 #=======================================================================================
