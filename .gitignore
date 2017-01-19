@@ -2,3 +2,4 @@
 *.request
 *.xml
 .idea/
+*~

@@ -139,8 +139,8 @@ class autoencoder(object):
 
 
     def decoder_step(self, depth, counter):
-        if counter > depth:
-            reversed_index = 5 - counter
+        if counter >= depth:
+            reversed_index = 6 - 1 - counter
             shape = self.shapes[reversed_index]
             weight_shape = self.enc_weights[reversed_index + 1].get_shape()
             stride_step = self.striders[reversed_index]
@@ -193,7 +193,7 @@ class autoencoder(object):
 
         self.ys = []
         self.costs = []
-        for depth in range(0, 5):
+        for depth in range(0, 1):
             for layer_i in range(1, 6):
                 self.decoder_step(depth, layer_i)
 
@@ -203,7 +203,7 @@ class autoencoder(object):
 
 #===============================================================================================
 
-test = 4
+test = 0
 
 ae = autoencoder()
 optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(ae.costs[test])
