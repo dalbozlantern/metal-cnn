@@ -30,9 +30,10 @@ resized_root = config.get('main', 'resized_root')
 IMAGE_DIM = 256
 BATCH_SIZE = 5
 MIN_AFTER_DEQUEUE = 1000
-N_EPOCHS = 500
+N_EPOCHS = 3000
 LEARNING_RATE = 0.01
 LATENT_DIM = 64**2
+CONV_DEPTH = 2
 FILE_NAME = resized_root + '/' + str(IMAGE_DIM) + '_images_and_names.tfrecords'
 
 
@@ -71,6 +72,7 @@ class autoencoder(object):
         self.corruption = False
 
         self.duplication = 1
+        self.sides_dim = [int(IMAGE_DIM * 2 ** -i) for i in range(7)]
         self.n_filters = [1] + [10]*4 + [3]
         self.striders = [2] * 6
         self.filter_sizes = [7] + [3]*5
@@ -131,34 +133,75 @@ class autoencoder(object):
         normalized = tf.nn.batch_normalization(self.enc_outputs[counter - 1],
                                                self.enc_bn_means[counter], self.enc_bn_vars[counter],
                                                offset=None, scale=None, variance_epsilon=1e-6)
+
         self.enc_weights += [self.init_weight([filter_size, filter_size, n_input, n_output])]
         self.enc_biases += [self.init_bias([n_output])]
-        convolved = tf.nn.conv2d(normalized, self.enc_weights[counter], strides=[1, stride_step, stride_step, 1], padding='SAME')
+        convolved = tf.nn.conv2d(normalized, self.enc_weights[counter], strides=[1, 1, 1, 1],
+                                 padding='SAME')
         output = lrelu(tf.add(convolved, self.enc_biases[counter]))
-        self.enc_outputs += [output]
+
+        self.enc_weights_2 += [self.init_weight([filter_size, filter_size, n_output, n_output])]
+        self.enc_biases_2 += [self.init_bias([n_output])]
+        convolved_2 = tf.nn.conv2d(output, self.enc_weights_2[counter], strides=[1, 1, 1, 1],
+                                 padding='SAME')
+        output_2 = lrelu(tf.add(convolved_2, self.enc_biases_2[counter]))
+
+        # self.shapes_3.append(self.enc_outputs[counter - 1].get_shape().as_list())
+        self.enc_weights_3 += [self.init_weight([filter_size, filter_size, n_output, n_output])]
+        self.enc_biases_3 += [self.init_bias([n_output])]
+        convolved_3 = tf.nn.conv2d(output_2, self.enc_weights_3[counter], strides=[1, 2, 2, 1],
+                                 padding='SAME')
+        output_3 = lrelu(tf.add(convolved_3, self.enc_biases_3[counter]))
+
+        self.enc_outputs += [output_3]
 
 
     def decoder_step(self, depth, counter):
         if counter > depth:
             reversed_index = 5 - counter
-            shape = self.shapes[reversed_index]
-            weight_shape = self.enc_weights[reversed_index + 1].get_shape()
-            stride_step = self.striders[reversed_index]
+            # shape = self.shapes[reversed_index]
+            # shape_3 = self.shapes_3[reversed_index]
+            # weight_shape_3 = self.enc_weights_3[reversed_index + 1].get_shape()
+            # stride_step = self.striders[reversed_index]
             bn_mean, bn_var = tf.nn.moments(self.dec_outputs[depth][counter-1], [0, 1, 2, 3])
             self.dec_bn_means[depth] += [bn_mean]
             self.dec_bn_vars[depth] += [bn_var]
             normalized = tf.nn.batch_normalization(self.dec_outputs[depth][counter-1], # 0, 1, 2, 3, 4
                                                    self.dec_bn_means[depth][counter], self.dec_bn_vars[depth][counter],  # 1, 2, 3, 4, 5
                                                    offset=None, scale=None, variance_epsilon=1e-6)
-            self.dec_weights[depth] += [self.init_weight(weight_shape)]
-            bias_shape = self.dec_weights[depth][counter].get_shape().as_list()[2]
-            self.dec_biases[depth] += [self.init_bias(bias_shape)]
+
+            # weight_shape = self.enc_weights[reversed_index + 1].get_shape()
+            filters_out = self.n_filters[5-counter]
+            filters_in = self.n_filters[6-counter]
+            kernel_dim = self.filter_sizes[5-counter]
+            dim_out = self.sides_dim[5-counter]
+            n_batches = tf.shape(self.x)[0]
+
+            self.dec_weights[depth] += [self.init_weight([kernel_dim, kernel_dim, filters_out, filters_in])]
+            self.dec_biases[depth] += [self.init_bias(filters_out)]
             deconvolved = tf.nn.conv2d_transpose(
                     normalized, self.dec_weights[depth][counter],
-                    tf.pack([tf.shape(self.x)[0], shape[1], shape[2], shape[3]]),
-                    strides=[1, stride_step, stride_step, 1], padding='SAME')
+                    tf.pack([n_batches, dim_out, dim_out, filters_out]),
+                    strides=[1, 2, 2, 1], padding='SAME')
             output = lrelu(tf.add(deconvolved, self.dec_biases[depth][counter]))
-            self.dec_outputs[depth] += [output]
+
+            self.dec_weights_2[depth] += [self.init_weight([kernel_dim, kernel_dim, filters_out, filters_out])]
+            self.dec_biases_2[depth] += [self.init_bias(filters_out)]
+            deconvolved_2 = tf.nn.conv2d_transpose(
+                    output, self.dec_weights_2[depth][counter],
+                    tf.pack([n_batches, dim_out, dim_out, filters_out]),
+                    strides=[1, 1, 1, 1], padding='SAME')
+            output_2 = lrelu(tf.add(deconvolved_2, self.dec_biases_2[depth][counter]))
+
+            self.dec_weights_3[depth] += [self.init_weight([kernel_dim, kernel_dim, filters_out, filters_out])]
+            self.dec_biases_3[depth] += [self.init_bias(filters_out)]
+            deconvolved_3 = tf.nn.conv2d_transpose(
+                    output_2, self.dec_weights_3[depth][counter],
+                    tf.pack([n_batches, dim_out, dim_out, filters_out]),
+                    strides=[1, 1, 1, 1], padding='SAME')
+            output_3 = lrelu(tf.add(deconvolved_3, self.dec_biases_3[depth][counter]))
+
+            self.dec_outputs[depth] += [output_3]
         else:
             self.dec_bn_means[depth] += [None]
             self.dec_bn_vars[depth] += [None]
@@ -173,11 +216,16 @@ class autoencoder(object):
 
         self.enc_weights = [None]
         self.enc_biases = [None]
+        self.enc_weights_2 = [None]
+        self.enc_biases_2 = [None]
+        self.enc_weights_3 = [None]
+        self.enc_biases_3 = [None]
         self.enc_bn_means = [None]
         self.enc_bn_vars = [None]
         self.enc_outputs = [self.x_tensor]
 
         self.shapes = []
+        self.shapes_3 = []
         for layer_i in range(1, 6):
             n_output = self.n_filters[layer_i]
             n_input = self.enc_outputs[layer_i - 1].get_shape().as_list()[3]
@@ -187,6 +235,10 @@ class autoencoder(object):
 
         self.dec_weights = [[None]] * 5
         self.dec_biases = [[None]] * 5
+        self.dec_weights_2 = [[None]] * 5
+        self.dec_biases_2 = [[None]] * 5
+        self.dec_weights_3 = [[None]] * 5
+        self.dec_biases_3 = [[None]] * 5
         self.dec_bn_means = [[None]] * 5
         self.dec_bn_vars = [[None]] * 5
         self.dec_outputs = [[None]*(i) + [self.enc_outputs[5-i]] for i in range(5)]
@@ -203,10 +255,9 @@ class autoencoder(object):
 
 #===============================================================================================
 
-test = 4
 
 ae = autoencoder()
-optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(ae.costs[test])
+optimizers = [tf.train.AdamOptimizer(LEARNING_RATE).minimize(ae.costs[depth]) for depth in range(5)]
 
 # We create a session to use the graph
 tf.Graph().as_default()
@@ -217,34 +268,32 @@ sess.run(tf.initialize_all_variables())
 
 # Fit all training data
 costs = []
-# for depth in range(1,2):
-#     ae.set_layers(depth)
-depth = 1
-for epoch_i in range(N_EPOCHS):
-    for batch_i in range(1): #TODO
-        batch_xs, _ = sess.run([images_batch, labels_batch])
-        # batch_xs_f = np.reshape(batch_xs, (BATCH_SIZE, IMAGE_DIM, IMAGE_DIM))
-        # batch_xs_f = [np.fft.fftshift(np.fft.fft2(batch_xs_f[i])) for i in range(len(batch_xs))]
-        # batch_xs_f = np.reshape(batch_xs, (BATCH_SIZE, IMAGE_DIM * IMAGE_DIM))=
-        train = batch_xs
-        sess.run(optimizer, feed_dict={ae.x: train})
-    if epoch_i % 25 == 0:
-        format_epoch = str(epoch_i) #TODO
-        cost_reported = sess.run(ae.costs[test], feed_dict={ae.x: train})
-        format_cost = str(cost_reported) #TODO
-        info_string = 'Depth: ' + str(depth) + ' | Epoch: ' + format_epoch + ' | Cost: ' + format_cost
-        progress_bar(info_string, epoch_i, N_EPOCHS)  #TODO
-        costs += [cost_reported]
+for depth in range(4, -1, -1):
+    for epoch_i in range(N_EPOCHS):
+        for batch_i in range(1): #TODO
+            batch_xs, _ = sess.run([images_batch, labels_batch])
+            # batch_xs_f = np.reshape(batch_xs, (BATCH_SIZE, IMAGE_DIM, IMAGE_DIM))
+            # batch_xs_f = [np.fft.fftshift(np.fft.fft2(batch_xs_f[i])) for i in range(len(batch_xs))]
+            # batch_xs_f = np.reshape(batch_xs, (BATCH_SIZE, IMAGE_DIM * IMAGE_DIM))=
+            train = batch_xs
+            sess.run(optimizers[depth], feed_dict={ae.x: train})
+        if epoch_i % 25 == 0:
+            format_epoch = str(epoch_i) #TODO
+            cost_reported = sess.run(ae.costs[depth], feed_dict={ae.x: train})
+            format_cost = str(cost_reported) #TODO
+            info_string = 'Depth: ' + str(depth) + ' | Epoch: ' + format_epoch + ' | Cost: ' + format_cost
+            progress_bar(info_string, epoch_i, N_EPOCHS)  #TODO
+            costs += [cost_reported]
 
-# Plot example reconstructions
-n_examples = 5
-test_xs, _ = sess.run([images_batch, labels_batch])
-# test_xs_f = np.reshape(test_xs, (BATCH_SIZE, IMAGE_DIM, IMAGE_DIM))
-# test_xs_f = [np.fft.fftshift(np.fft.fft2(test_xs_f[i])) for i in range(len(test_xs_f))]
-# test_xs_f = np.reshape(test_xs_f, (BATCH_SIZE, IMAGE_DIM * IMAGE_DIM))
+    # Plot example reconstructions
+    n_examples = 5
+    test_xs, _ = sess.run([images_batch, labels_batch])
+    # test_xs_f = np.reshape(test_xs, (BATCH_SIZE, IMAGE_DIM, IMAGE_DIM))
+    # test_xs_f = [np.fft.fftshift(np.fft.fft2(test_xs_f[i])) for i in range(len(test_xs_f))]
+    # test_xs_f = np.reshape(test_xs_f, (BATCH_SIZE, IMAGE_DIM * IMAGE_DIM))
 
 test_xs_norm = test_xs #new
-recon = sess.run(ae.ys[test], feed_dict={ae.x: test_xs_norm})
+recon = sess.run(ae.ys[0], feed_dict={ae.x: test_xs_norm})
 
 
 #=======================================================================================
@@ -281,5 +330,6 @@ plt.show()
 plt.plot(costs)
 plt.xscale('log')
 plt.yscale('log')
+plt.ylim(10**2, 10**8)
 plt.show()
 
