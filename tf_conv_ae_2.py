@@ -1,3 +1,7 @@
+# Adapted from implementation by 
+# Parag K. Mital, Jan 2016
+
+
 #=======================================================================================
 # Import statements
 
@@ -24,17 +28,12 @@ resized_root = config.get('main', 'resized_root')
 # Hyperparameters
 
 IMAGE_DIM = 256
-NUM_LAYERS = 6
-CONV_DEPTH = 2
 BATCH_SIZE = 5
 MIN_AFTER_DEQUEUE = 1000
-N_EPOCHS = 100000
+N_EPOCHS = 100
 LEARNING_RATE = 0.01
 LATENT_DIM = 64**2
-LAST_DEPTH = 4
-print('*'*32 + '\n' + str(int(
-    ((IMAGE_DIM/(2**NUM_LAYERS))**2)*LAST_DEPTH
-     )) + ' latent size\n' + '*'*32)
+CONV_DEPTH = 2
 FILE_NAME = resized_root + '/' + str(IMAGE_DIM) + '_images_and_names.tfrecords'
 
 
@@ -69,12 +68,14 @@ class autoencoder(object):
     def __init__(self):
         self.input_shape = [None, IMAGE_DIM ** 2]
         self.latent_dim = LATENT_DIM
-        self.corruption = True
+        self.layers_deep = 3
+        self.corruption = False
 
-        self.sides_dim = [int(IMAGE_DIM * 2 ** -i) for i in range(NUM_LAYERS + 1)]
-        self.n_filters = [1] + [10]*(NUM_LAYERS - 1) + [LAST_DEPTH]
-        self.striders = [2] * (NUM_LAYERS + 1)
-        self.filter_sizes = [7] + [3]*NUM_LAYERS
+        self.duplication = 1
+        self.sides_dim = [int(IMAGE_DIM * 2 ** -i) for i in range(7)]
+        self.n_filters = [1] + [10]*4 + [3]
+        self.striders = [2] * 6
+        self.filter_sizes = [7] + [3]*5
 
         self.initialize_and_validate_x()
         self.build_graph()
@@ -126,35 +127,35 @@ class autoencoder(object):
 
     def encoder_step(self, counter):
 
+        filters_in = self.n_filters[counter-1]
+        filters_out = self.n_filters[counter]
+        filter_size = self.filter_sizes[counter - 1]
         bn_mean, bn_var = tf.nn.moments(self.enc_outputs[counter - 1], [0, 1, 2, 3])
         self.enc_bn_means += [bn_mean]
         self.enc_bn_vars += [bn_var]
         normalized = tf.nn.batch_normalization(self.enc_outputs[counter - 1],
                                                self.enc_bn_means[counter], self.enc_bn_vars[counter],
                                                offset=None, scale=None, variance_epsilon=1e-6)
-        # Initialize repeated convolutions
-        outputs = [normalized]
-        kernel_dim = self.filter_sizes[counter - 1]
-        filters_out = self.n_filters[counter]
 
-        # Iterated convolutions + ReLU; compression on final layer
-        for conv in range(CONV_DEPTH):
-            if conv == 0:
-                filters_in = self.n_filters[counter - 1]
-            else:
-                filters_in = self.n_filters[counter]
-            if conv == CONV_DEPTH - 1:
-                stride_len = 2
-            else:
-                stride_len = 1
+        self.enc_weights_1 += [self.init_weight([filter_size, filter_size, filters_in, filters_out])]
+        self.enc_biases_1 += [self.init_bias([filters_out])]
+        convolved = tf.nn.conv2d(normalized, self.enc_weights_1[counter], strides=[1, 1, 1, 1],
+                                 padding='SAME')
+        output = lrelu(tf.add(convolved, self.enc_biases_1[counter]))
 
-            self.enc_weights[conv] += [self.init_weight([kernel_dim, kernel_dim, filters_in, filters_out])]
-            self.enc_biases[conv] += [self.init_bias([filters_out])]
-            convolved = tf.nn.conv2d(outputs[-1], self.enc_weights[conv][-1], strides=[1, stride_len, stride_len, 1],
-                                     padding='SAME')
-            outputs += [lrelu(tf.add(convolved, self.enc_biases[conv][-1]))]
+        self.enc_weights_2 += [self.init_weight([filter_size, filter_size, filters_out, filters_out])]
+        self.enc_biases_2 += [self.init_bias([filters_out])]
+        convolved_2 = tf.nn.conv2d(output, self.enc_weights_2[counter], strides=[1, 1, 1, 1],
+                                 padding='SAME')
+        output_2 = lrelu(tf.add(convolved_2, self.enc_biases_2[counter]))
 
-        self.enc_outputs += [outputs[-1]]
+        self.enc_weights_3 += [self.init_weight([filter_size, filter_size, filters_out, filters_out])]
+        self.enc_biases_3 += [self.init_bias([filters_out])]
+        convolved_3 = tf.nn.conv2d(output_2, self.enc_weights_3[counter], strides=[1, 2, 2, 1],
+                                 padding='SAME')
+        output_3 = lrelu(tf.add(convolved_3, self.enc_biases_3[counter]))
+
+        self.enc_outputs += [output_3]
 
 
     def decoder_step(self, depth, counter):
@@ -167,36 +168,46 @@ class autoencoder(object):
                                                    self.dec_bn_means[depth][counter], self.dec_bn_vars[depth][counter],
                                                    offset=None, scale=None, variance_epsilon=1e-6)
 
-            # Initialize repeated deconvolutions
-            outputs = [normalized]
-            kernel_dim = self.filter_sizes[NUM_LAYERS - counter]
-            dim_out = self.sides_dim[NUM_LAYERS - counter]
+            filters_in = self.n_filters[6-counter]
+            filters_out = self.n_filters[5-counter]
+            kernel_dim = self.filter_sizes[5-counter]
+            dim_out = self.sides_dim[5-counter]
             n_batches = tf.shape(self.x)[0]
-            filters_out = self.n_filters[NUM_LAYERS - counter]
 
-            # Iterated convolutions + ReLU; decompression on first layer
-            for conv in range(CONV_DEPTH):
-                if conv == 0:
-                    filters_in = self.n_filters[NUM_LAYERS + 1 - counter]
-                    stride_len = 2
-                else:
-                    filters_in = self.n_filters[NUM_LAYERS - counter]
-                    stride_len = 1
-                self.dec_weights[conv][depth] += [self.init_weight([kernel_dim, kernel_dim, filters_out, filters_in])]
-                self.dec_biases[conv][depth] += [self.init_bias(filters_out)]
-                deconvolved = tf.nn.conv2d_transpose(
-                        outputs[-1], self.dec_weights[conv][depth][-1],
-                        tf.pack([n_batches, dim_out, dim_out, filters_out]),
-                        strides=[1, stride_len, stride_len, 1], padding='SAME')
-                outputs += [lrelu(tf.add(deconvolved, self.dec_biases[conv][depth][-1]))]
+            self.dec_weights_1[depth] += [self.init_weight([kernel_dim, kernel_dim, filters_out, filters_in])]
+            self.dec_biases_1[depth] += [self.init_bias(filters_out)]
+            deconvolved = tf.nn.conv2d_transpose(
+                    normalized, self.dec_weights_1[depth][counter],
+                    tf.pack([n_batches, dim_out, dim_out, filters_out]),
+                    strides=[1, 2, 2, 1], padding='SAME')
+            output = lrelu(tf.add(deconvolved, self.dec_biases_1[depth][counter]))
 
-            self.dec_outputs[depth] += [outputs[-1]]
+            self.dec_weights_2[depth] += [self.init_weight([kernel_dim, kernel_dim, filters_out, filters_out])]
+            self.dec_biases_2[depth] += [self.init_bias(filters_out)]
+            deconvolved_2 = tf.nn.conv2d_transpose(
+                    output, self.dec_weights_2[depth][counter],
+                    tf.pack([n_batches, dim_out, dim_out, filters_out]),
+                    strides=[1, 1, 1, 1], padding='SAME')
+            output_2 = lrelu(tf.add(deconvolved_2, self.dec_biases_2[depth][counter]))
+
+            self.dec_weights_3[depth] += [self.init_weight([kernel_dim, kernel_dim, filters_out, filters_out])]
+            self.dec_biases_3[depth] += [self.init_bias(filters_out)]
+            deconvolved_3 = tf.nn.conv2d_transpose(
+                    output_2, self.dec_weights_3[depth][counter],
+                    tf.pack([n_batches, dim_out, dim_out, filters_out]),
+                    strides=[1, 1, 1, 1], padding='SAME')
+            output_3 = lrelu(tf.add(deconvolved_3, self.dec_biases_3[depth][counter]))
+
+            self.dec_outputs[depth] += [output_3]
         else:
             self.dec_bn_means[depth] += [None]
             self.dec_bn_vars[depth] += [None]
-            for conv in range(CONV_DEPTH):
-                self.dec_weights[conv][depth] += [None]
-                self.dec_biases[conv][depth] += [None]
+            self.dec_weights_1[depth] += [None]
+            self.dec_biases_1[depth] += [None]
+            self.dec_weights_2[depth] += [None]
+            self.dec_biases_2[depth] += [None]
+            self.dec_weights_3[depth] += [None]
+            self.dec_biases_3[depth] += [None]
 
 
 
@@ -206,25 +217,35 @@ class autoencoder(object):
 
         self.enc_bn_means = [None]
         self.enc_bn_vars = [None]
-        self.enc_weights = [[None]] * CONV_DEPTH
-        self.enc_biases = [[None]] * CONV_DEPTH
+        self.enc_weights_1 = [None]
+        self.enc_biases_1 = [None]
+        self.enc_weights_2 = [None]
+        self.enc_biases_2 = [None]
+        self.enc_weights_3 = [None]
+        self.enc_biases_3 = [None]
         self.enc_outputs = [self.x_tensor]
 
-        for layer_i in range(1, NUM_LAYERS + 1):
+        # self.shapes = []
+        # self.shapes_3 = []
+        for layer_i in range(1, 6):
             self.encoder_step(layer_i)
 
         # self.fully_connected()
 
-        self.dec_bn_means = [[None]] * NUM_LAYERS
-        self.dec_bn_vars = [[None]] * NUM_LAYERS
-        self.dec_weights = [[[None]] * NUM_LAYERS] * CONV_DEPTH
-        self.dec_biases = [[[None]] * NUM_LAYERS] * CONV_DEPTH
-        self.dec_outputs = [[None]*(i) + [self.enc_outputs[NUM_LAYERS-i]] for i in range(NUM_LAYERS)]
+        self.dec_bn_means = [[None]] * 5
+        self.dec_bn_vars = [[None]] * 5
+        self.dec_weights_1 = [[None]] * 5
+        self.dec_biases_1 = [[None]] * 5
+        self.dec_weights_2 = [[None]] * 5
+        self.dec_biases_2 = [[None]] * 5
+        self.dec_weights_3 = [[None]] * 5
+        self.dec_biases_3 = [[None]] * 5
+        self.dec_outputs = [[None]*(i) + [self.enc_outputs[5-i]] for i in range(5)]
 
         self.ys = []
         self.costs = []
-        for depth in range(0, NUM_LAYERS):
-            for layer_i in range(1, NUM_LAYERS + 1):
+        for depth in range(0, 5):
+            for layer_i in range(1, 6):
                 self.decoder_step(depth, layer_i)
 
             self.ys += [self.dec_outputs[depth][-1]]  # Pass the current state from the previous operations
@@ -235,7 +256,7 @@ class autoencoder(object):
 
 
 ae = autoencoder()
-optimizers = [tf.train.AdamOptimizer(LEARNING_RATE).minimize(ae.costs[depth]) for depth in range(NUM_LAYERS)]
+optimizers = [tf.train.AdamOptimizer(LEARNING_RATE).minimize(ae.costs[depth]) for depth in range(5)]
 
 # We create a session to use the graph
 tf.Graph().as_default()
@@ -246,7 +267,7 @@ sess.run(tf.initialize_all_variables())
 
 # Fit all training data
 costs = []
-for depth in range(NUM_LAYERS - 1, -1, -1):
+for depth in range(4, -1, -1):
     for epoch_i in range(N_EPOCHS):
         for batch_i in range(1): #TODO
             batch_xs, _ = sess.run([images_batch, labels_batch])
@@ -256,7 +277,7 @@ for depth in range(NUM_LAYERS - 1, -1, -1):
             format_epoch = str(epoch_i) #TODO
             cost_reported = sess.run(ae.costs[depth], feed_dict={ae.x: train})
             format_cost = str(cost_reported) #TODO
-            info_string = 'Depth: ' + str(NUM_LAYERS - depth) + '/' + str(NUM_LAYERS) + ' | Epoch: ' + format_epoch + ' | Cost: ' + format_cost
+            info_string = 'Depth: ' + str(depth) + ' | Epoch: ' + format_epoch + ' | Cost: ' + format_cost
             progress_bar(info_string, epoch_i, N_EPOCHS)  #TODO
             costs += [cost_reported]
 
