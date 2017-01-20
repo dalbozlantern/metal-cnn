@@ -81,3 +81,12 @@ for name in cleaned_names:
     char_list += collections.Counter(name)
 char_list = dict(char_list)
 print(char_list)
+
+
+
+
+
+import numpy as np
+from utils.greyscaling import load_image, show_image
+img = load_image('/mnt/2Teraz/DL-datasets/metal-cnn-images/Metal_Logo_Corpus/256/0000/Khatryna-#504.png')
+

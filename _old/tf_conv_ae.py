@@ -23,32 +23,20 @@ resized_root = config.get('main', 'resized_root')
 #=======================================================================================
 # Hyperparameters
 
-# Inputs
 IMAGE_DIM = 256
+NUM_LAYERS = 6
+CONV_DEPTH = 2
+BATCH_SIZE = 5
 CHANNELS = 1
-FILE_NAME = resized_root + '/' + str(IMAGE_DIM) + '_images_and_names.tfrecords'
-
-
-# Network architecture
+MIN_AFTER_DEQUEUE = 1000
+N_EPOCHS = 100000
+LEARNING_RATE = 0.01
 LATENT_DIM = 64**2
-NUM_LAYERS = 5
-CONV_DEPTH = 1
 LAST_DEPTH = 4
-CORRUPTION = False
-
 print('*'*32 + '\n' + str(int(
     ((IMAGE_DIM/(2**NUM_LAYERS))**2)*LAST_DEPTH
      )) + ' latent size\n' + '*'*32)
-
-
-# Hyperparameters
-BATCH_SIZE = 5
-N_EPOCHS = 500
-LEARNING_RATE = 0.01
-
-
-# Other
-MIN_AFTER_DEQUEUE = 1000
+FILE_NAME = resized_root + '/' + str(IMAGE_DIM) + '_images_and_names.tfrecords'
 
 
 #=======================================================================================
@@ -80,9 +68,9 @@ images_batch, labels_batch = tf.train.shuffle_batch(
 
 class autoencoder(object):
     def __init__(self):
-        self.input_shape = [None, IMAGE_DIM * IMAGE_DIM * CHANNELS]
+        self.input_shape = [None, IMAGE_DIM ** 2]
         self.latent_dim = LATENT_DIM
-        self.corruption = CORRUPTION
+        self.corruption = True
 
         self.sides_dim = [int(IMAGE_DIM * 2 ** -i) for i in range(NUM_LAYERS + 1)]
         self.n_filters = [CHANNELS] + [10]*(NUM_LAYERS - 1) + [LAST_DEPTH]
@@ -102,8 +90,12 @@ class autoencoder(object):
 
         # Ensure 2-d is converted to square tensor.
         if len(self.x.get_shape()) == 2:
+            x_dim = np.sqrt(self.x.get_shape().as_list()[1])
+            if x_dim != int(x_dim):
+                raise ValueError('Unsupported input dimensions')
+            x_dim = int(x_dim)
             self.x_tensor = tf.reshape(
-                self.x, [-1, IMAGE_DIM, IMAGE_DIM, CHANNELS])
+                self.x, [-1, x_dim, x_dim, self.n_filters[0]])
         elif len(self.x.get_shape()) == 4:
             self.x_tensor = self.x
         else:
@@ -236,7 +228,7 @@ class autoencoder(object):
             for layer_i in range(1, NUM_LAYERS + 1):
                 self.decoder_step(depth, layer_i)
 
-            self.ys += [self.dec_outputs[depth][-1]]
+            self.ys += [self.dec_outputs[depth][-1]]  # Pass the current state from the previous operations
             self.costs += [tf.reduce_sum(tf.square(self.ys[depth] - self.x_tensor))]
 
 
@@ -252,8 +244,6 @@ sess = tf.Session()
 coord = tf.train.Coordinator()
 tf.train.start_queue_runners(sess=sess, coord=coord)
 sess.run(tf.initialize_all_variables())
-
-
 
 # Fit all training data
 costs = []
@@ -299,6 +289,6 @@ plt.show()
 plt.plot(costs)
 plt.xscale('log')
 plt.yscale('log')
-# plt.ylim(10**2, 10**8)
+plt.ylim(10**2, 10**8)
 plt.show()
 

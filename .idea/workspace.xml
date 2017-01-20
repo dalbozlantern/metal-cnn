@@ -2,8 +2,11 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="505a355f-bc6e-48d8-ba32-cc69826cb8b5" name="Default" comment="">
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/tf_conv_ae_2.py" />
+      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/tf_conv_ae_fourier.py" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/nvidia-killer.sh" afterPath="" />
+      <change type="MOVED" beforePath="$PROJECT_DIR$/tf_conv_ae_2.py" afterPath="$PROJECT_DIR$/_old/tf_conv_ae.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/scratchwork.py" afterPath="$PROJECT_DIR$/scratchwork.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/tf_conv_ae.py" afterPath="$PROJECT_DIR$/tf_conv_ae.py" />
     </list>
     <ignored path="metal-cnn.iws" />
@@ -39,30 +42,33 @@
       <file leaf-file-name="tf_conv_ae.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/tf_conv_ae.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-1340">
-              <caret line="40" column="21" selection-start-line="40" selection-start-column="21" selection-end-line="40" selection-end-column="21" />
+            <state relative-caret-position="687">
+              <caret line="298" column="0" selection-start-line="298" selection-start-column="0" selection-end-line="302" selection-end-column="10" />
               <folding>
-                <element signature="e#2724#3379#0" expanded="false" />
+                <element signature="e#2274#2731#0" expanded="false" />
+                <element signature="e#2849#3310#0" expanded="false" />
+                <element signature="e#3552#4266#0" expanded="false" />
+                <element signature="e#4315#5763#0" expanded="false" />
               </folding>
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="tf_conv_ae_2.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/tf_conv_ae_2.py">
+      <file leaf-file-name="tf_conv_ae_fourier.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/tf_conv_ae_fourier.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="0">
-              <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+            <state relative-caret-position="292">
+              <caret line="238" column="52" selection-start-line="238" selection-start-column="52" selection-end-line="238" selection-end-column="52" />
               <folding />
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="nvidia-killer.sh" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/nvidia-killer.sh">
+      <file leaf-file-name="scratchwork.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/scratchwork.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="18">
-              <caret line="1" column="45" selection-start-line="1" selection-start-column="45" selection-end-line="1" selection-end-column="45" />
+            <state relative-caret-position="832">
+              <caret line="92" column="0" selection-start-line="88" selection-start-column="0" selection-end-line="92" selection-end-column="0" />
               <folding />
             </state>
           </provider>
@@ -116,7 +122,6 @@
         <option value="$PROJECT_DIR$/todo_list.txt" />
         <option value="$PROJECT_DIR$/scratch2.lua" />
         <option value="$PROJECT_DIR$/train_model.lua" />
-        <option value="$PROJECT_DIR$/scratchwork.py" />
         <option value="$PROJECT_DIR$/LICENSE" />
         <option value="$PROJECT_DIR$/band-name-analysis.py" />
         <option value="$PROJECT_DIR$/utils/greyscaling.py" />
@@ -138,14 +143,16 @@
         <option value="$PROJECT_DIR$/tf_conv_ae2.py" />
         <option value="$PROJECT_DIR$/tf_conv_ae3.py" />
         <option value="$PROJECT_DIR$/.gitignore" />
+        <option value="$PROJECT_DIR$/scratchwork.py" />
+        <option value="$PROJECT_DIR$/tf_conv_ae_fourier.py" />
         <option value="$PROJECT_DIR$/tf_conv_ae.py" />
       </list>
     </option>
   </component>
   <component name="ProjectFrameBounds">
-    <option name="x" value="749" />
+    <option name="x" value="992" />
     <option name="y" value="52" />
-    <option name="width" value="1170" />
+    <option name="width" value="927" />
     <option name="height" value="1028" />
   </component>
   <component name="ProjectLevelVcsManager" settingsEditedManually="false">
@@ -191,20 +198,6 @@
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
           </PATH>
-          <PATH>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="metal-cnn" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="metal-cnn" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="_old" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-          </PATH>
         </subPane>
       </pane>
       <pane id="Scratches" />
@@ -219,13 +212,14 @@
     <property name="SearchEverywhereHistoryKey" value="&#9;FILE&#9;file:///home/dalboz/code/metal-cnn/B01_img2name2.py" />
   </component>
   <component name="RecentsManager">
-    <key name="CopyFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$" />
-    </key>
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/_old" />
       <recent name="$PROJECT_DIR$/utils" />
       <recent name="$PROJECT_DIR$" />
+    </key>
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$" />
+      <recent name="$PROJECT_DIR$/_old" />
     </key>
   </component>
   <component name="RunManager">
@@ -389,10 +383,10 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="749" y="52" width="1170" height="1028" extended-state="4" />
+    <frame x="992" y="52" width="927" height="1028" extended-state="4" />
     <editor active="true" />
     <layout>
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.14857651" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.18955731" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="LuaJ" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
@@ -442,23 +436,6 @@
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/scratchwork.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/README.md">
-      <provider selected="true" editor-type-id="split-provider[text-editor;MarkdownPreviewEditor]">
-        <state split_layout="SPLIT">
-          <first_editor relative-caret-position="36">
-            <caret line="2" column="19" selection-start-line="2" selection-start-column="19" selection-end-line="2" selection-end-column="19" />
-          </first_editor>
-          <second_editor />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/todo_list.txt" />
     <entry file="file://$PROJECT_DIR$/.gitignore">
       <provider selected="true" editor-type-id="text-editor">
@@ -589,13 +566,6 @@
     <entry file="file://$PROJECT_DIR$/sort_downloads_into_batches.sh" />
     <entry file="file://$PROJECT_DIR$/scraper.py" />
     <entry file="file://$PROJECT_DIR$/band_name_analysis.py" />
-    <entry file="file://$PROJECT_DIR$/scratchwork.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="892">
-          <caret line="68" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="82" selection-end-column="16" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/_old/B01_img2name.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="738">
@@ -702,12 +672,39 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/_old/tf_conv_ae.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="162">
+          <caret line="48" column="38" selection-start-line="48" selection-start-column="38" selection-end-line="48" selection-end-column="38" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/scratchwork.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="832">
+          <caret line="92" column="0" selection-start-line="88" selection-start-column="0" selection-end-line="92" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/tf_conv_ae_fourier.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="292">
+          <caret line="238" column="52" selection-start-line="238" selection-start-column="52" selection-end-line="238" selection-end-column="52" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/tf_conv_ae.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-1340">
-          <caret line="40" column="21" selection-start-line="40" selection-start-column="21" selection-end-line="40" selection-end-column="21" />
+        <state relative-caret-position="687">
+          <caret line="298" column="0" selection-start-line="298" selection-start-column="0" selection-end-line="302" selection-end-column="10" />
           <folding>
-            <element signature="e#2724#3379#0" expanded="false" />
+            <element signature="e#2274#2731#0" expanded="false" />
+            <element signature="e#2849#3310#0" expanded="false" />
+            <element signature="e#3552#4266#0" expanded="false" />
+            <element signature="e#4315#5763#0" expanded="false" />
           </folding>
         </state>
       </provider>
