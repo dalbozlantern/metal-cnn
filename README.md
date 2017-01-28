@@ -6,8 +6,6 @@ This project aims to automate the creative process of graphic logo design using 
 
 ## Project motivation
 
-![Splash image](/utils/pencil.jpg)
-
 The computerized automation of routine, creative outputs has the potential to benefit both producers and consumers of creative works. With the ability to automate steps within the artistic process, makers of creative content can reallocate their time and their efforts on high-level innovation rather than filling in “the details” of their vision. Consumers, on the other hand, stand to benefit from the decreased costs of artistic works.
 
 Recent research in this field has focused largely on the generation of text outputs ranging from [journalism](https://www.theguardian.com/media/2016/apr/03/artificla-intelligence-robot-reporter-pulitzer-prize) to forays in [political speech](https://arxiv.org/abs/1601.03313). This is in large part due to the existence of an easily accessible market for text-as-content: customers (and indirectly advertisers) are willing to pay for news articles, novels, and periodicals.
