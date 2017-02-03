@@ -10,7 +10,7 @@ The computerized automation of routine, creative outputs has the potential to be
 
 Recent research in this field has focused largely on the generation of text outputs ranging from [journalism](https://www.theguardian.com/media/2016/apr/03/artificla-intelligence-robot-reporter-pulitzer-prize) to forays in [political speech](https://arxiv.org/abs/1601.03313). This is in large part due to the existence of an easily accessible market for text-as-content: customers (and indirectly advertisers) are willing to pay for news articles, novels, and periodicals.
 
-This stands in contrast to the lack of a comparably broad market for individual images. There are, however, several exceptions to this rule: notable among them is the market for branding and marketing materials, including corporate logos, which sometimes fetch quite high professional fees. Generating these branding plans currently requires many person-hours of conception, implementation, and iteration. The ability to automate all or part of this process would therefore represent a very attractive commercial target.
+This stands in contrast to the lack of a comparably broad market for individual images. There are, however, several exceptions to this rule: notable among them is the market for branding and marketing materials, including corporate logos, which drive substantial professional fees. Generating these branding plans currently requires many person-hours of conception, implementation, and iteration. The ability to automate all or part of this process would therefore represent a very attractive commercial target.
 
 ## Research context
 
